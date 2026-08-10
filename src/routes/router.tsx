@@ -4,6 +4,7 @@ import CustomerLayout from '@/layouts/CustomerLayout';
 import AdminLayout from '@/layouts/AdminLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import PageLoader from '@/components/common/PageLoader';
+import RouteErrorBoundary from '@/components/common/RouteErrorBoundary';
 import HomePage from '@/pages/public/HomePage';
 import LoginPage from '@/pages/public/LoginPage';
 
@@ -33,6 +34,7 @@ function withSuspense(element: JSX.Element) {
 export const router = createBrowserRouter([
   {
     element: <CustomerLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { path: '/', element: <HomePage /> },
       { path: '/movies/:movieId', element: withSuspense(<MovieDetailPage />) },
@@ -59,6 +61,7 @@ export const router = createBrowserRouter([
       {
         path: '/admin',
         element: <AdminLayout />,
+        errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, element: withSuspense(<DashboardPage />) },
           { path: 'movies', element: withSuspense(<MovieListPage />) },

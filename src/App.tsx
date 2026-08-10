@@ -3,10 +3,13 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { router } from '@/routes/router';
 
+import { Toaster } from 'react-hot-toast';
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster position="top-right" />
     </QueryClientProvider>
   );
 }

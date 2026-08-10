@@ -7,13 +7,19 @@ import PasswordInput from '@/components/common/PasswordInput';
 import { register as registerApi } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 
-const schema = z.object({
-  fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
-  username: z.string().min(3, 'Tài khoản tối thiểu 3 ký tự'),
-  email: z.string().email('Email không hợp lệ'),
-  phone: z.string().min(9, 'Số điện thoại không hợp lệ'),
-  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
-});
+const schema = z
+  .object({
+    fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
+    username: z.string().min(3, 'Tài khoản tối thiểu 3 ký tự'),
+    email: z.string().email('Email không hợp lệ'),
+    phone: z.string().min(9, 'Số điện thoại không hợp lệ'),
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+    confirmPassword: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Mật khẩu xác nhận không khớp',
+    path: ['confirmPassword'],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -47,54 +53,77 @@ export default function RegisterPage() {
     },
   });
 
-  const onSubmit = (values: FormValues) => mutation.mutate(values);
+  const onSubmit = (values: FormValues) => {
+    const { confirmPassword: _confirmPassword, ...payload } = values;
+    mutation.mutate(payload);
+  };
 
   return (
-    <div className="container-app flex max-w-md flex-col py-16">
+    <div className="container-app flex max-w-2xl flex-col py-16">
       <h1 className="mb-6 text-2xl font-semibold">Đăng ký</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-        {fields.map((field) => {
-          const inputId = `register-${field.name}`;
-          const errorId = `${inputId}-error`;
-          return (
-            <div key={field.name}>
-              <label htmlFor={inputId} className="mb-1 block text-sm text-text-muted">
-                {field.label}
-              </label>
-              <input
-                id={inputId}
-                type={field.type ?? 'text'}
-                autoComplete={field.autoComplete}
-                aria-invalid={!!errors[field.name]}
-                aria-describedby={errors[field.name] ? errorId : undefined}
-                {...registerField(field.name)}
-                className="input"
-              />
-              {errors[field.name] && (
-                <p id={errorId} role="alert" className="mt-1 text-sm text-error">
-                  {errors[field.name]?.message}
-                </p>
-              )}
-            </div>
-          );
-        })}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {fields.map((field) => {
+            const inputId = `register-${field.name}`;
+            const errorId = `${inputId}-error`;
+            return (
+              <div key={field.name}>
+                <label htmlFor={inputId} className="mb-1 block text-sm text-text-muted">
+                  {field.label}
+                </label>
+                <input
+                  id={inputId}
+                  type={field.type ?? 'text'}
+                  autoComplete={field.autoComplete}
+                  aria-invalid={!!errors[field.name]}
+                  aria-describedby={errors[field.name] ? errorId : undefined}
+                  {...registerField(field.name)}
+                  className="input"
+                />
+                {errors[field.name] && (
+                  <p id={errorId} role="alert" className="mt-1 text-sm text-error">
+                    {errors[field.name]?.message}
+                  </p>
+                )}
+              </div>
+            );
+          })}
 
-        <div>
-          <label htmlFor="register-password" className="mb-1 block text-sm text-text-muted">
-            Mật khẩu
-          </label>
-          <PasswordInput
-            id="register-password"
-            autoComplete="new-password"
-            aria-invalid={!!errors.password}
-            aria-describedby={errors.password ? 'register-password-error' : undefined}
-            {...registerField('password')}
-          />
-          {errors.password && (
-            <p id="register-password-error" role="alert" className="mt-1 text-sm text-error">
-              {errors.password.message}
-            </p>
-          )}
+          <div>
+            <label htmlFor="register-password" className="mb-1 block text-sm text-text-muted">
+              Mật khẩu
+            </label>
+            <PasswordInput
+              id="register-password"
+              autoComplete="new-password"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? 'register-password-error' : undefined}
+              {...registerField('password')}
+            />
+            {errors.password && (
+              <p id="register-password-error" role="alert" className="mt-1 text-sm text-error">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="register-confirm-password" className="mb-1 block text-sm text-text-muted">
+              Xác nhận mật khẩu
+            </label>
+            <PasswordInput
+              id="register-confirm-password"
+              autoComplete="new-password"
+              aria-invalid={!!errors.confirmPassword}
+              aria-describedby={errors.confirmPassword ? 'register-confirm-password-error' : undefined}
+              {...registerField('confirmPassword')}
+            />
+            {errors.confirmPassword && (
+              <p id="register-confirm-password-error" role="alert" className="mt-1 text-sm text-error">
+                {errors.confirmPassword.message}
+              </p>
+            )}
+          </div>
         </div>
 
         {mutation.isError && (

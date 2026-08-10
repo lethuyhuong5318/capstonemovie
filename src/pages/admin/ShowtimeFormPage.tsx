@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchMovieById } from '@/services/movieService';
+import { fetchLiveMovieById } from '@/services/movieApiService';
 import { createShowtime } from '@/services/showtimeService';
 import { cinemaSystems } from '@/mocks/cinemas';
 
@@ -13,7 +13,7 @@ export default function ShowtimeFormPage() {
 
   const { data: movie } = useQuery({
     queryKey: ['movie', movieId],
-    queryFn: () => fetchMovieById(movieId),
+    queryFn: () => fetchLiveMovieById(movieId),
     enabled: Number.isFinite(movieId),
   });
 

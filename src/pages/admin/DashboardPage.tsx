@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Film, Clapperboard, Ticket, Wallet } from 'lucide-react';
-import { fetchMovies } from '@/services/movieService';
+import { fetchLiveMovies, getCachedLiveMovie } from '@/services/movieApiService';
 import { showtimes } from '@/mocks/showtimes';
 import { bookings } from '@/mocks/bookings';
 import { movies as movieList } from '@/mocks/movies';
 import { formatCurrency } from '@/utils/format';
 
 export default function DashboardPage() {
-  const { data: movies } = useQuery({ queryKey: ['admin-movies'], queryFn: () => fetchMovies() });
+  const { data: movies } = useQuery({
+    queryKey: ['admin-movies'],
+    queryFn: () => fetchLiveMovies({ status: 'all' }),
+  });
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayShowtimes = showtimes.filter((s) => s.date === todayStr);
@@ -22,7 +25,10 @@ export default function DashboardPage() {
       counts.set(showtime.movieId, (counts.get(showtime.movieId) ?? 0) + b.seatCodes.length);
     }
     return Array.from(counts.entries())
-      .map(([movieId, tickets]) => ({ movie: movieList.find((m) => m.id === movieId), tickets }))
+      .map(([movieId, tickets]) => ({
+        movie: movieList.find((m) => m.id === movieId) ?? getCachedLiveMovie(movieId),
+        tickets,
+      }))
       .filter((x) => x.movie)
       .sort((a, b) => b.tickets - a.tickets)
       .slice(0, 5);

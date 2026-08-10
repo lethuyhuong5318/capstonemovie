@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteMovie, fetchMovies } from '@/services/movieService';
+import { deleteLiveMovie, fetchLiveMovies } from '@/services/movieApiService';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
 import Pagination from '@/components/common/Pagination';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 6;
 
@@ -16,7 +17,7 @@ export default function MovieListPage() {
 
   const { data: movies } = useQuery({
     queryKey: ['admin-movies'],
-    queryFn: () => fetchMovies(),
+    queryFn: () => fetchLiveMovies({ status: 'all' }),
   });
 
   const filtered = useMemo(() => {
@@ -29,9 +30,17 @@ export default function MovieListPage() {
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteMovie(id),
+    mutationFn: (id: number) => deleteLiveMovie(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-movies'] });
+      queryClient.invalidateQueries({ queryKey: ['live-movies'] });
+      setDeleteTarget(null);
+    },
+    onError: (err: unknown) => {
+      const message =
+        (err as { response?: { data?: { content?: string } } })?.response?.data?.content ??
+        'Không thể xóa phim này (có thể đã có lịch chiếu hoặc đặt vé).';
+      toast.error(message);
       setDeleteTarget(null);
     },
   });
@@ -73,7 +82,12 @@ export default function MovieListPage() {
             {paged.map((movie) => (
               <tr key={movie.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3">
-                  <PosterPlaceholder label="" className="h-14 w-10" rounded="rounded" />
+                  <PosterPlaceholder
+                    label={movie.name}
+                    src={movie.posterUrl}
+                    className="h-14 w-10"
+                    rounded="rounded"
+                  />
                 </td>
                 <td className="px-4 py-3 font-medium">{movie.name}</td>
                 <td className="px-4 py-3 text-text-muted">

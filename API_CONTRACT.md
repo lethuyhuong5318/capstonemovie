@@ -1,4 +1,4 @@
-# CineWave — API Contract (Frontend → Backend handoff)
+
 
 Base URL: `{VITE_API_BASE_URL}` (mặc định `http://localhost:3000/api`)
 
@@ -158,5 +158,4 @@ Auth: Bearer JWT trong header `Authorization: Bearer <accessToken>` (đã gắn 
 ## TypeScript interfaces tham chiếu
 Xem đầy đủ tại [src/types/index.ts](src/types/index.ts): `Movie`, `CinemaSystem`, `Cinema`, `Room`, `Showtime`, `Seat`, `Booking`, `User`, `ApiResponse`.
 
-## Ghi chú chuyển đổi từ mock sang API thật
-Toàn bộ logic nghiệp vụ hiện nằm trong `src/services/*.ts`, dùng mock data tại `src/mocks/*.ts`. Khi backend sẵn sàng, chỉ cần thay nội dung từng hàm trong `services/` bằng lời gọi `api.get/post/patch/delete` (instance `axios` đã cấu hình sẵn tại [src/lib/axios.ts](src/lib/axios.ts) với interceptor JWT) — không cần sửa bất kỳ component hay page nào.
+

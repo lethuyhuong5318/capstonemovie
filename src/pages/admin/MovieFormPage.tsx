@@ -5,20 +5,18 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  createMovie,
-  fetchMovieById,
-  updateMovie,
-  type MovieFormValues,
-} from '@/services/movieService';
+  createLiveMovie,
+  fetchLiveMovieById,
+  updateLiveMovie,
+} from '@/services/movieApiService';
+import imageCompression from 'browser-image-compression';
 
 const AGE_RATINGS = ['P', 'K', 'T13', 'T16', 'T18'] as const;
 
 const schema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên phim'),
-  englishName: z.string().min(1, 'Vui lòng nhập tên tiếng Anh'),
   trailerUrl: z.string().min(1, 'Vui lòng nhập link trailer'),
   description: z.string().min(1, 'Vui lòng nhập mô tả'),
-  genres: z.string().min(1, 'Vui lòng nhập ít nhất một thể loại'),
   durationMinutes: z.number().min(1, 'Thời lượng không hợp lệ'),
   releaseDate: z.string().min(1, 'Vui lòng chọn ngày khởi chiếu'),
   ageRating: z.enum(AGE_RATINGS),
@@ -27,16 +25,20 @@ const schema = z.object({
   isHot: z.boolean(),
 });
 
+type FormValues = z.infer<typeof schema>;
+
 export default function MovieFormPage() {
   const { id } = useParams();
   const movieId = id ? Number(id) : undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const { data: existing } = useQuery({
     queryKey: ['movie', movieId],
-    queryFn: () => fetchMovieById(movieId!),
+    queryFn: () => fetchLiveMovieById(movieId!),
     enabled: !!movieId,
   });
 
@@ -45,14 +47,12 @@ export default function MovieFormPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<MovieFormValues>({
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: '',
-      englishName: '',
       trailerUrl: '',
       description: '',
-      genres: '',
       durationMinutes: 120,
       releaseDate: '',
       ageRating: 'T13',
@@ -66,10 +66,8 @@ export default function MovieFormPage() {
     if (existing) {
       reset({
         name: existing.name,
-        englishName: existing.englishName,
         trailerUrl: existing.trailerUrl,
         description: existing.description,
-        genres: existing.genres.join(', '),
         durationMinutes: existing.durationMinutes,
         releaseDate: existing.releaseDate.slice(0, 10),
         ageRating: existing.ageRating,
@@ -77,26 +75,64 @@ export default function MovieFormPage() {
         isUpcoming: existing.isUpcoming,
         isHot: existing.isHot,
       });
+      setPosterPreview(existing.posterUrl || null);
     }
   }, [existing, reset]);
 
+  const [posterError, setPosterError] = useState<string | null>(null);
+
   const mutation = useMutation({
-    mutationFn: (values: MovieFormValues) =>
-      movieId ? updateMovie(movieId, values) : createMovie(values),
+    mutationFn: (values: FormValues) => {
+      const payload = { ...values, posterFile };
+      return movieId ? updateLiveMovie(movieId, payload) : createLiveMovie(payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-movies'] });
-      queryClient.invalidateQueries({ queryKey: ['movies', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['live-movies'] });
       navigate('/admin/movies');
+    },
+    onError: (err: unknown) => {
+      const message =
+        (err as { response?: { data?: { content?: string } } })?.response?.data?.content ??
+        'Không thể lưu phim. Vui lòng thử lại.';
+      window.alert(message);
     },
   });
 
-  function handlePosterChange(e: React.ChangeEvent<HTMLInputElement>) {
-    // Gửi lên backend thật sẽ dùng FormData: formData.append('poster', file)
+  async function handlePosterChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setPosterPreview(URL.createObjectURL(file));
+    if (file) {
+      setPosterError(null);
+      if (file.size > 1 * 1024 * 1024) {
+        try {
+          setIsCompressing(true);
+          const compressedFile = await imageCompression(file, {
+            maxSizeMB: 0.9,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          });
+          setPosterFile(compressedFile);
+          setPosterPreview(URL.createObjectURL(compressedFile));
+        } catch (error) {
+          console.error('Error compressing image:', error);
+          setPosterError('Lỗi khi nén ảnh. Vui lòng chọn ảnh khác.');
+        } finally {
+          setIsCompressing(false);
+        }
+      } else {
+        setPosterFile(file);
+        setPosterPreview(URL.createObjectURL(file));
+      }
+    }
   }
 
-  const onSubmit = (values: MovieFormValues) => mutation.mutate(values);
+  const onSubmit = (values: FormValues) => {
+    if (!posterFile) {
+      setPosterError('Vui lòng chọn ảnh poster');
+      return;
+    }
+    mutation.mutate(values);
+  };
 
   return (
     <div>
@@ -112,25 +148,27 @@ export default function MovieFormPage() {
           <label className="block">
             <span className="mb-1 block text-sm text-text-muted">Poster</span>
             <div className="mb-2 flex aspect-[2/3] items-center justify-center overflow-hidden rounded-lg bg-surface-elevated">
-              {posterPreview ? (
+              {isCompressing ? (
+                <span className="text-xs text-text-muted">Đang nén ảnh...</span>
+              ) : posterPreview ? (
                 <img src={posterPreview} alt="Poster preview" className="h-full w-full object-cover" />
               ) : (
                 <span className="text-xs text-text-muted">Chưa có ảnh</span>
               )}
             </div>
-            <input type="file" accept="image/*" onChange={handlePosterChange} className="text-xs" />
+            <input type="file" accept="image/*" onChange={handlePosterChange} disabled={isCompressing} className="text-xs" />
+            {posterError && (
+              <span role="alert" className="mt-1 block text-xs text-error">
+                {posterError}
+              </span>
+            )}
           </label>
         </div>
 
         <div className="flex flex-col gap-4 md:col-span-2">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Tên phim" error={errors.name?.message}>
-              <input {...register('name')} className="input" />
-            </FormField>
-            <FormField label="Tên tiếng Anh" error={errors.englishName?.message}>
-              <input {...register('englishName')} className="input" />
-            </FormField>
-          </div>
+          <FormField label="Tên phim" error={errors.name?.message}>
+            <input {...register('name')} className="input" />
+          </FormField>
 
           <FormField label="Link trailer (YouTube embed)" error={errors.trailerUrl?.message}>
             <input {...register('trailerUrl')} className="input" placeholder="https://www.youtube.com/embed/..." />
@@ -139,10 +177,7 @@ export default function MovieFormPage() {
             <textarea {...register('description')} rows={4} className="input resize-none" />
           </FormField>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <FormField label="Thể loại (cách nhau bởi dấu phẩy)" error={errors.genres?.message}>
-              <input {...register('genres')} className="input" placeholder="Hành động, Viễn tưởng" />
-            </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Thời lượng (phút)" error={errors.durationMinutes?.message}>
               <input
                 type="number"
@@ -180,7 +215,7 @@ export default function MovieFormPage() {
           <div className="flex gap-3">
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || isCompressing}
               className="rounded-md bg-primary px-5 py-2 text-sm font-medium hover:bg-primary-hover disabled:opacity-50"
             >
               {mutation.isPending ? 'Đang lưu...' : 'Lưu phim'}

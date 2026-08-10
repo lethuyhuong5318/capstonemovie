@@ -4,7 +4,7 @@ import { movies } from '@/mocks/movies';
 import { getCachedLiveMovie } from '@/services/movieApiService';
 import { getSeatsForShowtime, computeShowtimeStatus } from '@/mocks/seats';
 import { delay } from '@/services/delay';
-import type { Seat, Showtime, ShowtimeStatus } from '@/types';
+import type { Movie, Seat, Showtime, ShowtimeStatus } from '@/types';
 
 export interface ShowtimeWithStatus extends Showtime {
   status: ShowtimeStatus;
@@ -60,6 +60,47 @@ export async function fetchShowtimesByMovie(
 
 export async function fetchShowtimeById(id: number) {
   return delay(findShowtime(id));
+}
+
+export interface CinemaScheduleMovie {
+  movieId: number;
+  movieName: string;
+  posterUrl: string;
+  ageRating: Movie['ageRating'] | undefined;
+  showtimes: ShowtimeWithStatus[];
+}
+
+/** Schedule at a single cinema for one day, grouped by movie — seeds showtimes for the given movie ids first. */
+export async function fetchScheduleByCinema(
+  cinemaId: number,
+  date: string,
+  movieIds: number[],
+): Promise<CinemaScheduleMovie[]> {
+  for (const id of movieIds) ensureShowtimesForMovie(id);
+
+  const relevant = showtimes
+    .filter((s) => s.cinemaId === cinemaId && s.date === date)
+    .map((s) => ({ ...s, status: computeShowtimeStatus(s.id) }));
+
+  const byMovie = new Map<number, ShowtimeWithStatus[]>();
+  for (const st of relevant) {
+    const arr = byMovie.get(st.movieId) ?? [];
+    arr.push(st);
+    byMovie.set(st.movieId, arr);
+  }
+
+  const result: CinemaScheduleMovie[] = Array.from(byMovie.entries()).map(([movieId, sts]) => {
+    const movie = movies.find((m) => m.id === movieId) ?? getCachedLiveMovie(movieId);
+    return {
+      movieId,
+      movieName: movie?.name ?? '',
+      posterUrl: movie?.posterUrl ?? '',
+      ageRating: movie?.ageRating,
+      showtimes: sts.sort((a, b) => a.time.localeCompare(b.time)),
+    };
+  });
+
+  return delay(result.filter((m) => m.movieName));
 }
 
 export interface ShowtimeDetail extends Showtime {

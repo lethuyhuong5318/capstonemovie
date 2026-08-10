@@ -12,13 +12,14 @@ import BookingSummary from '@/components/booking/BookingSummary';
 import ComboSelector from '@/components/booking/ComboSelector';
 import ProgressSteps from '@/components/booking/ProgressSteps';
 import PaymentMethodSelector from '@/components/booking/PaymentMethodSelector';
+import PaymentGateway from '@/components/booking/PaymentGateway';
 import { useCountdown } from '@/hooks/useCountdown';
 import { formatCurrency } from '@/utils/format';
 import type { Booking, PaymentMethod, Seat } from '@/types';
 
 const HOLD_SECONDS = 5 * 60;
 
-type Step = 'seats' | 'payment' | 'success';
+type Step = 'seats' | 'payment' | 'gateway' | 'success';
 
 export default function BookingPage() {
   const { showtimeId } = useParams();
@@ -76,6 +77,7 @@ export default function BookingPage() {
       setComboQuantities({});
       queryClient.invalidateQueries({ queryKey: ['seats', id] });
     },
+    onError: () => setStep('payment'),
   });
 
   function toggleSeat(seat: Seat) {
@@ -182,14 +184,43 @@ export default function BookingPage() {
               combos={combos}
               comboQuantities={comboQuantities}
               confirmDisabled={paymentMutation.isPending}
-              confirmLabel={
-                paymentMutation.isPending
-                  ? 'Đang xử lý thanh toán...'
-                  : errorMessage
-                    ? 'Thử lại'
-                    : `Thanh toán ${formatCurrency(grandTotal)}`
-              }
-              onConfirm={() => paymentMutation.mutate()}
+              confirmLabel={errorMessage ? 'Thử lại' : `Thanh toán ${formatCurrency(grandTotal)}`}
+              onConfirm={() => setStep('gateway')}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'gateway') {
+    return (
+      <div className="container-app max-w-3xl py-6">
+        <div className="mb-6">
+          <ProgressSteps current={3} />
+        </div>
+
+        <h1 className="mb-6 text-2xl font-semibold">Thanh toán</h1>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
+          <PaymentGateway
+            method={method}
+            amount={grandTotal}
+            orderCode={`ORD${id}`}
+            pending={paymentMutation.isPending}
+            onCancel={() => setStep('payment')}
+            onConfirm={() => paymentMutation.mutate()}
+          />
+
+          <div>
+            <BookingSummary
+              showtime={showtime}
+              selectedSeats={selected}
+              combos={combos}
+              comboQuantities={comboQuantities}
+              confirmDisabled
+              confirmLabel={formatCurrency(grandTotal)}
+              onConfirm={() => {}}
             />
           </div>
         </div>
