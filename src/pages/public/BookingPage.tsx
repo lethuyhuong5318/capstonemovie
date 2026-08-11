@@ -9,6 +9,7 @@ import {
   type TicketSeat,
 } from '@/services/ticketApiService';
 import { processPayment, paymentMethodLabel } from '@/services/paymentService';
+import { saveAdminBooking } from '@/services/adminBookingService';
 import { useAuthStore } from '@/store/authStore';
 import SeatMap from '@/components/booking/SeatMap';
 import ProgressSteps from '@/components/booking/ProgressSteps';
@@ -64,12 +65,30 @@ export default function BookingPage() {
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
+      if (!room) throw new Error('Thông tin suất chiếu chưa sẵn sàng. Vui lòng thử lại.');
       const result = await processPayment(method);
       if (result.status === 'FAILED') throw new PaymentFailedError(result.transactionCode);
 
       await bookTickets({
         showtimeId: id,
         seats: selected.map((s) => ({ id: s.id, price: s.price })),
+      });
+      saveAdminBooking({
+        id: `${id}-${result.transactionCode}`,
+        transactionCode: result.transactionCode,
+        customerUsername: user?.username ?? 'guest',
+        customerName: user?.fullName ?? 'Khách hàng',
+        movieName: room.movieName,
+        cinemaName: room.cinemaName,
+        roomName: room.roomName,
+        showtimeId: id,
+        showtimeDate: room.date,
+        showtimeTime: showTime ?? room.time,
+        seatCodes: selected.map((seat) => seat.code),
+        total: grandTotal,
+        paymentMethod: method,
+        status: 'PAID',
+        createdAt: new Date().toISOString(),
       });
       return result.transactionCode;
     },
@@ -79,6 +98,7 @@ export default function BookingPage() {
       setSelected([]);
       queryClient.invalidateQueries({ queryKey: ['ticket-room', id] });
       queryClient.invalidateQueries({ queryKey: ['my-tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
     },
     onError: (error) => {
       setStep('payment');

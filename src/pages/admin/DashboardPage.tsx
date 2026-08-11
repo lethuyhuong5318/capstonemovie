@@ -1,16 +1,21 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Film, Clapperboard, Ticket, Wallet } from 'lucide-react';
-import { fetchLiveMovies, getCachedLiveMovie } from '@/services/movieApiService';
+import { fetchLiveMovies } from '@/services/movieApiService';
 import { showtimes } from '@/mocks/showtimes';
-import { bookings } from '@/mocks/bookings';
 import { movies as movieList } from '@/mocks/movies';
 import { formatCurrency } from '@/utils/format';
+import { fetchAdminBookings } from '@/services/adminBookingService';
 
 export default function DashboardPage() {
   const { data: movies } = useQuery({
     queryKey: ['admin-movies'],
     queryFn: () => fetchLiveMovies({ status: 'all' }),
+  });
+  const { data: bookings = [] } = useQuery({
+    queryKey: ['admin-bookings'],
+    queryFn: fetchAdminBookings,
+    staleTime: 0,
   });
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -18,21 +23,15 @@ export default function DashboardPage() {
   const totalRevenue = bookings.reduce((sum, b) => sum + b.total, 0);
 
   const topMovies = useMemo(() => {
-    const counts = new Map<number, number>();
+    const counts = new Map<string, number>();
     for (const b of bookings) {
-      const showtime = showtimes.find((s) => s.id === b.showtimeId);
-      if (!showtime) continue;
-      counts.set(showtime.movieId, (counts.get(showtime.movieId) ?? 0) + b.seatCodes.length);
+      counts.set(b.movieName, (counts.get(b.movieName) ?? 0) + b.seatCodes.length);
     }
     return Array.from(counts.entries())
-      .map(([movieId, tickets]) => ({
-        movie: movieList.find((m) => m.id === movieId) ?? getCachedLiveMovie(movieId),
-        tickets,
-      }))
-      .filter((x) => x.movie)
+      .map(([movieName, tickets]) => ({ movieName, tickets }))
       .sort((a, b) => b.tickets - a.tickets)
       .slice(0, 5);
-  }, []);
+  }, [bookings]);
 
   const stats = [
     { icon: Film, label: 'Phim đang chiếu', value: (movies ?? []).filter((m) => m.isShowing).length },
@@ -60,11 +59,11 @@ export default function DashboardPage() {
         <p className="text-sm text-text-muted">Chưa có dữ liệu đặt vé.</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {topMovies.map(({ movie, tickets }) => {
+          {topMovies.map(({ movieName, tickets }) => {
             const max = topMovies[0].tickets || 1;
             return (
-              <div key={movie!.id} className="flex items-center gap-3">
-                <span className="w-40 shrink-0 truncate text-sm">{movie!.name}</span>
+              <div key={movieName} className="flex items-center gap-3">
+                <span className="w-40 shrink-0 truncate text-sm">{movieName}</span>
                 <div className="h-2 flex-1 rounded-full bg-surface-elevated">
                   <div
                     className="h-2 rounded-full bg-primary"

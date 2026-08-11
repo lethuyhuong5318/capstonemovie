@@ -1,11 +1,13 @@
-import { bookings } from '@/mocks/bookings';
-import { showtimes } from '@/mocks/showtimes';
-import { movies } from '@/mocks/movies';
-import { users } from '@/mocks/users';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAdminBookings } from '@/services/adminBookingService';
 import { formatCurrency } from '@/utils/format';
 
 export default function BookingListPage() {
-  const rows = [...bookings].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const { data: rows = [] } = useQuery({
+    queryKey: ['admin-bookings'],
+    queryFn: fetchAdminBookings,
+    staleTime: 0,
+  });
 
   return (
     <div>
@@ -24,18 +26,15 @@ export default function BookingListPage() {
           </thead>
           <tbody>
             {rows.map((b) => {
-              const showtime = showtimes.find((s) => s.id === b.showtimeId);
-              const movie = movies.find((m) => m.id === showtime?.movieId);
-              const customer = users.find((u) => u.id === b.userId);
               return (
                 <tr key={b.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium">{b.code}</td>
-                  <td className="px-4 py-3 text-text-muted">{customer?.fullName}</td>
-                  <td className="px-4 py-3">{movie?.name}</td>
+                  <td className="px-4 py-3 font-medium">{b.transactionCode}</td>
+                  <td className="px-4 py-3 text-text-muted">{b.customerName}<br /><span className="text-xs">{b.customerUsername}</span></td>
+                  <td className="px-4 py-3">{b.movieName}</td>
                   <td className="px-4 py-3 text-text-muted">{b.seatCodes.join(', ')}</td>
                   <td className="px-4 py-3">{formatCurrency(b.total)}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded bg-surface-elevated px-2 py-0.5 text-xs">{b.status}</span>
+                    <span className="rounded bg-success/15 px-2 py-0.5 text-xs text-success">Đã thanh toán</span>
                   </td>
                 </tr>
               );

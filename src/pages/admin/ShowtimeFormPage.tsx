@@ -50,12 +50,13 @@ export default function ShowtimeFormPage() {
 
   const mutation = useMutation({
     mutationFn: () => {
-      if (!clusterCode) {
-        throw new Error('Vui lòng chọn cụm rạp.');
+      const validRoom = selectedCluster?.rooms?.some((room) => room.id === roomId);
+      if (!clusterCode || !validRoom) {
+        throw new Error('Phòng chiếu không thuộc cụm rạp đã chọn. Vui lòng chọn lại.');
       }
       return createShowtime({
         movieId,
-        cinemaClusterCode: clusterCode,
+        roomId,
         date,
         time,
         price,
@@ -162,7 +163,7 @@ export default function ShowtimeFormPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={mutation.isPending || !clusterCode}
+            disabled={mutation.isPending || !clusterCode || !roomId}
             className="rounded bg-primary px-5 py-2 text-sm font-medium hover:bg-primary-hover disabled:opacity-50"
           >
             {mutation.isPending ? 'Đang lưu...' : 'Tạo lịch chiếu'}
