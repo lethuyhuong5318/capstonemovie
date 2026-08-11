@@ -1,30 +1,35 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Popcorn } from 'lucide-react';
+import { Clock, MapPin, Ticket } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { fetchMyBookings } from '@/services/bookingService';
+import { fetchMyTickets } from '@/services/ticketApiService';
 import EmptyState from '@/components/common/EmptyState';
+import PosterPlaceholder from '@/components/common/PosterPlaceholder';
 import { formatCurrency } from '@/utils/format';
-import type { BookingStatus } from '@/types';
 
-const tabs: { key: BookingStatus; label: string }[] = [
-  { key: 'UPCOMING', label: 'Sắp xem' },
-  { key: 'WATCHED', label: 'Đã xem' },
-  { key: 'CANCELLED', label: 'Đã hủy' },
-];
+function formatBookedAt(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
-  const [tab, setTab] = useState<BookingStatus>('UPCOMING');
 
-  const { data: bookings, isLoading } = useQuery({
-    queryKey: ['my-bookings', user?.id],
-    queryFn: () => fetchMyBookings(user!.id),
+  const {
+    data: tickets,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['my-tickets'],
+    queryFn: fetchMyTickets,
     enabled: !!user,
   });
-
-  const filtered = useMemo(() => (bookings ?? []).filter((b) => b.status === tab), [bookings, tab]);
 
   if (!user) return null;
 
@@ -36,55 +41,51 @@ export default function ProfilePage() {
         <Field label="Họ tên" value={user.fullName} />
         <Field label="Tài khoản" value={user.username} />
         <Field label="Email" value={user.email} />
-        <Field label="Số điện thoại" value={user.phone} />
+        <Field label="Số điện thoại" value={user.phone || '—'} />
       </div>
 
-      <h2 className="mb-3 mt-8 text-xl font-semibold">Vé của tôi</h2>
-      <div className="mb-4 flex gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`rounded-md px-3 py-1.5 text-sm ${
-              tab === t.key ? 'bg-primary text-white' : 'bg-surface text-text-muted'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <h2 className="mb-4 mt-8 text-xl font-semibold">Vé của tôi</h2>
 
       {isLoading ? (
-        <p className="text-text-muted">Đang tải...</p>
-      ) : filtered.length > 0 ? (
+        <p className="text-text-muted">Đang tải vé...</p>
+      ) : isError ? (
+        <p className="rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+          Không tải được lịch sử vé. Vui lòng thử lại sau.
+        </p>
+      ) : tickets && tickets.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {filtered.map((b) => (
-            <Link
-              key={b.id}
-              to={`/tickets/${b.id}`}
-              className="block rounded-lg border border-border bg-surface p-4 hover:border-primary/50"
-            >
-              <div className="flex items-center justify-between">
-                <p className="font-medium">{b.movieName}</p>
-                <p className="font-semibold text-primary">{formatCurrency(b.total)}</p>
+          {tickets.map((t) => (
+            <div key={t.id} className="flex gap-4 rounded-lg border border-border bg-surface p-4">
+              <PosterPlaceholder
+                label={t.movieName}
+                src={t.posterUrl}
+                className="aspect-[2/3] w-20 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="font-medium">{t.movieName}</p>
+                  <p className="font-semibold text-primary">{formatCurrency(t.total)}</p>
+                </div>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted">
+                  <MapPin size={13} /> {t.cinemaName} · {t.roomName}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted">
+                  <Clock size={13} /> Đặt lúc {formatBookedAt(t.bookedAt)}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm">
+                  <Ticket size={13} className="text-text-muted" />
+                  <span className="text-text-muted">Ghế:</span>
+                  <span className="font-medium">{t.seatCodes.join(', ')}</span>
+                </p>
               </div>
-              <p className="mt-1 text-sm text-text-muted">
-                {b.cinemaName} · {b.showtime?.date} {b.showtime?.time}
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
-                Mã vé: {b.code} · Ghế: {b.seatCodes.join(', ')}
-                {b.combos.length > 0 && (
-                  <span className="flex items-center gap-1 text-accent">
-                    <Popcorn size={12} /> {b.combos.length} combo
-                  </span>
-                )}
-              </p>
-            </Link>
+            </div>
           ))}
         </div>
       ) : (
-        <EmptyState title="Chưa có vé nào" description="Vé của bạn sẽ hiển thị ở đây sau khi đặt thành công." />
+        <EmptyState
+          title="Chưa có vé nào"
+          description="Vé của bạn sẽ hiển thị ở đây sau khi đặt thành công."
+        />
       )}
     </div>
   );

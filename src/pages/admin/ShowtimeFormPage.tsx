@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchLiveMovieById } from '@/services/movieApiService';
 import { createShowtime } from '@/services/showtimeService';
-import { cinemaSystems } from '@/mocks/cinemas';
+import { fetchCinemaBrands, fetchClustersBySystem } from '@/services/cinemaApiService';
 
 export default function ShowtimeFormPage() {
   const { id } = useParams();
@@ -17,23 +17,42 @@ export default function ShowtimeFormPage() {
     enabled: Number.isFinite(movieId),
   });
 
-  const [cinemaSystemId, setCinemaSystemId] = useState(cinemaSystems[0]?.id ?? 0);
-  const cinemasOfSystem = useMemo(
-    () => cinemaSystems.find((s) => s.id === cinemaSystemId)?.cinemas ?? [],
-    [cinemaSystemId],
+  const { data: cinemaSystems = [] } = useQuery({
+    queryKey: ['cinema-systems'],
+    queryFn: fetchCinemaBrands,
+  });
+  const [cinemaSystemCode, setCinemaSystemCode] = useState('');
+  const { data: cinemaClusters = [] } = useQuery({
+    queryKey: ['cinema-clusters', cinemaSystemCode],
+    queryFn: () => fetchClustersBySystem(cinemaSystemCode),
+    enabled: Boolean(cinemaSystemCode),
+  });
+  const [clusterCode, setClusterCode] = useState('');
+  const selectedCluster = useMemo(
+    () => cinemaClusters.find((cluster) => cluster.code === clusterCode),
+    [cinemaClusters, clusterCode],
   );
-  const [cinemaId, setCinemaId] = useState(cinemasOfSystem[0]?.id ?? 0);
+  const [roomId, setRoomId] = useState(0);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState('19:00');
   const [price, setPrice] = useState(75000);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!cinemaSystemCode && cinemaSystems[0]) setCinemaSystemCode(cinemaSystems[0].code);
+  }, [cinemaSystemCode, cinemaSystems]);
+
+  useEffect(() => {
+    const firstCluster = cinemaClusters[0];
+    setClusterCode(firstCluster?.code ?? '');
+    setRoomId(firstCluster?.rooms?.[0]?.id ?? 0);
+  }, [cinemaClusters]);
+
   const mutation = useMutation({
     mutationFn: () =>
       createShowtime({
         movieId,
-        cinemaSystemId,
-        cinemaId: cinemaId || cinemasOfSystem[0]?.id,
+        roomId,
         date,
         time,
         price,
@@ -60,16 +79,15 @@ export default function ShowtimeFormPage() {
           <label className="mb-1 block text-sm text-text-muted">Hệ thống rạp</label>
           <select
             className="input"
-            value={cinemaSystemId}
+            value={cinemaSystemCode}
             onChange={(e) => {
-              const val = Number(e.target.value);
-              setCinemaSystemId(val);
-              const first = cinemaSystems.find((s) => s.id === val)?.cinemas[0]?.id ?? 0;
-              setCinemaId(first);
+              setCinemaSystemCode(e.target.value);
+              setClusterCode('');
+              setRoomId(0);
             }}
           >
             {cinemaSystems.map((s) => (
-              <option key={s.id} value={s.id}>
+              <option key={s.code} value={s.code}>
                 {s.name}
               </option>
             ))}
@@ -78,10 +96,30 @@ export default function ShowtimeFormPage() {
 
         <div>
           <label className="mb-1 block text-sm text-text-muted">Cụm rạp</label>
-          <select className="input" value={cinemaId} onChange={(e) => setCinemaId(Number(e.target.value))}>
-            {cinemasOfSystem.map((c) => (
-              <option key={c.id} value={c.id}>
+          <select
+            className="input"
+            value={clusterCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              setClusterCode(code);
+              const cluster = cinemaClusters.find((item) => item.code === code);
+              setRoomId(cluster?.rooms?.[0]?.id ?? 0);
+            }}
+          >
+            {cinemaClusters.map((c) => (
+              <option key={c.code} value={c.code}>
                 {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-text-muted">Phòng chiếu</label>
+          <select className="input" value={roomId} onChange={(e) => setRoomId(Number(e.target.value))}>
+            {(selectedCluster?.rooms ?? []).map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name}
               </option>
             ))}
           </select>
@@ -111,11 +149,16 @@ export default function ShowtimeFormPage() {
         </div>
 
         {successMsg && <p className="text-sm text-emerald-400">{successMsg}</p>}
+        {mutation.isError && (
+          <p role="alert" className="text-sm text-error">
+            {mutation.error instanceof Error ? mutation.error.message : 'Tạo lịch chiếu thất bại.'}
+          </p>
+        )}
 
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !roomId}
             className="rounded bg-primary px-5 py-2 text-sm font-medium hover:bg-primary-hover disabled:opacity-50"
           >
             {mutation.isPending ? 'Đang lưu...' : 'Tạo lịch chiếu'}

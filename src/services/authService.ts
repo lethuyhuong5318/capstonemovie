@@ -1,5 +1,4 @@
-import { users, nextUserId, findUserByUsername } from '@/mocks/users';
-import { delay } from '@/services/delay';
+import { cybersoftApi, CYBERSOFT_MA_NHOM, setCybersoftAccessToken, cybersoftErrorMessage } from '@/lib/cybersoftApi';
 import type { AuthTokens, User } from '@/types';
 
 export interface LoginPayload {
@@ -15,46 +14,104 @@ export interface RegisterPayload {
   fullName: string;
 }
 
-function makeTokens(user: User): AuthTokens {
-  return {
-    accessToken: `mock-access-${user.id}-${Date.now()}`,
-    refreshToken: `mock-refresh-${user.id}-${Date.now()}`,
-  };
+interface CyberSoftAccount {
+  taiKhoan: string;
+  hoTen: string;
+  email: string;
+  soDT?: string;
+  soDt?: string;
+  maLoaiNguoiDung?: string;
+  accessToken?: string;
 }
 
 export class InvalidCredentialsError extends Error {}
 export class AccountLockedError extends Error {}
 export class UsernameTakenError extends Error {}
 
-export async function login(payload: LoginPayload): Promise<AuthTokens & { user: User }> {
-  const user = findUserByUsername(payload.username);
-  if (!user || payload.password.length < 6) {
-    throw new InvalidCredentialsError('Sai tài khoản hoặc mật khẩu');
+/**
+ * The API has no numeric user id — `taiKhoan` is the primary key. Local features
+ * that key off `User.id` (reviews, bookings) need a stable number, so we derive
+ * one deterministically from the account name.
+ */
+function idFromAccount(taiKhoan: string): number {
+  let hash = 0;
+  for (let i = 0; i < taiKhoan.length; i++) {
+    hash = (hash * 31 + taiKhoan.charCodeAt(i)) | 0;
   }
-  if (user.isLocked) {
-    throw new AccountLockedError('Tài khoản đã bị khóa');
-  }
-  return delay({ ...makeTokens(user), user }, 400);
+  return Math.abs(hash);
 }
 
-export async function register(
-  payload: RegisterPayload,
-): Promise<AuthTokens & { user: User }> {
-  if (findUserByUsername(payload.username)) {
-    throw new UsernameTakenError('Tài khoản đã tồn tại');
-  }
-  const user: User = {
-    id: nextUserId(),
-    username: payload.username,
-    email: payload.email,
-    phone: payload.phone,
-    fullName: payload.fullName,
-    role: 'CUSTOMER',
+function toUser(raw: CyberSoftAccount): User {
+  const isRealAdmin = raw.maLoaiNguoiDung === 'QuanTri';
+  return {
+    id: idFromAccount(raw.taiKhoan),
+    username: raw.taiKhoan,
+    email: raw.email,
+    phone: raw.soDT ?? raw.soDt ?? '',
+    fullName: raw.hoTen,
+    role: isRealAdmin ? 'ADMIN' : 'CUSTOMER',
   };
-  users.push(user);
-  return delay({ ...makeTokens(user), user }, 400);
 }
 
-export async function requestPasswordReset(email: string) {
-  return delay({ sent: true, email }, 500);
+export async function login(payload: LoginPayload): Promise<AuthTokens & { user: User }> {
+  try {
+    const res = await cybersoftApi.post<{ content: CyberSoftAccount }>(
+      'QuanLyNguoiDung/DangNhap',
+      { taiKhoan: payload.username, matKhau: payload.password },
+    );
+    const content = res.data.content;
+    const accessToken = content.accessToken ?? '';
+    // Every authenticated call (booking, admin writes) reads this token.
+    setCybersoftAccessToken(accessToken);
+    return { user: toUser(content), accessToken, refreshToken: accessToken };
+  } catch (error) {
+    const status = (error as { response?: { status?: number } }).response?.status;
+    if (status === 404 || status === 400 || status === 401) {
+      throw new InvalidCredentialsError('Sai tài khoản hoặc mật khẩu');
+    }
+    throw new Error(cybersoftErrorMessage(error, 'Đăng nhập thất bại. Vui lòng thử lại.'));
+  }
+}
+
+export async function register(payload: RegisterPayload): Promise<AuthTokens & { user: User }> {
+  try {
+    await cybersoftApi.post('QuanLyNguoiDung/DangKy', {
+      taiKhoan: payload.username,
+      matKhau: payload.password,
+      email: payload.email,
+      soDt: payload.phone,
+      maNhom: CYBERSOFT_MA_NHOM,
+      hoTen: payload.fullName,
+    });
+  } catch (error) {
+    const message = cybersoftErrorMessage(error, 'Đăng ký thất bại. Vui lòng thử lại.');
+    if (/tồn tại|đã có|taken/i.test(message)) {
+      throw new UsernameTakenError('Tài khoản đã tồn tại, vui lòng chọn tên khác');
+    }
+    throw new Error(message);
+  }
+  // Registration does not return a token — sign in to obtain one.
+  return login({ username: payload.username, password: payload.password });
+}
+
+export async function fetchAccountInfo(): Promise<User> {
+  const res = await cybersoftApi.post<{ content: CyberSoftAccount }>(
+    'QuanLyNguoiDung/ThongTinTaiKhoan',
+    {},
+  );
+  return toUser(res.data.content);
+}
+
+export function clearAuthToken() {
+  setCybersoftAccessToken(null);
+}
+
+/**
+ * The CyberSoft API exposes no password-reset endpoint, so this cannot be
+ * fulfilled client-side. Surfaced as a clear message rather than a fake success.
+ */
+export async function requestPasswordReset(_email: string): Promise<never> {
+  throw new Error(
+    'Hệ thống hiện chưa hỗ trợ đặt lại mật khẩu tự động. Vui lòng liên hệ quản trị viên để được cấp lại mật khẩu.',
+  );
 }

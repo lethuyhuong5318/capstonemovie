@@ -2,153 +2,157 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { MapPin } from 'lucide-react';
-import { fetchCinemaSystems } from '@/services/cinemaService';
-import { fetchLiveMovies } from '@/services/movieApiService';
-import { fetchScheduleByCinema } from '@/services/showtimeService';
+import { fetchFullSchedule } from '@/services/cinemaApiService';
 import DateSelector from '@/components/cinema/DateSelector';
-import AgeBadge from '@/components/movie/AgeBadge';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
-import type { ShowtimeStatus } from '@/types';
-
-const statusStyle: Record<ShowtimeStatus, string> = {
-  AVAILABLE: 'border-border hover:border-primary hover:text-primary',
-  ALMOST_FULL: 'border-warning/50 text-warning hover:bg-warning/10',
-  SOLD_OUT: 'border-border text-text-muted/50 cursor-not-allowed line-through',
-  EXPIRED: 'border-border text-text-muted/30 cursor-not-allowed',
-};
-
-function nextDates(count: number) {
-  const dates: string[] = [];
-  const today = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    dates.push(d.toISOString().slice(0, 10));
-  }
-  return dates;
-}
-
-const dates = nextDates(7);
+import EmptyState from '@/components/common/EmptyState';
 
 export default function CinemaListPage() {
   const navigate = useNavigate();
-  const [systemId, setSystemId] = useState<number | null>(null);
-  const [cinemaId, setCinemaId] = useState<number | null>(null);
-  const [date, setDate] = useState(dates[0]);
+  const [systemCode, setSystemCode] = useState<string | null>(null);
+  const [clusterCode, setClusterCode] = useState<string | null>(null);
+  const [date, setDate] = useState<string | null>(null);
 
-  const { data: systems } = useQuery({ queryKey: ['cinema-systems'], queryFn: fetchCinemaSystems });
-  const { data: liveMovies } = useQuery({
-    queryKey: ['live-movies', 'showing'],
-    queryFn: () => fetchLiveMovies({ status: 'showing' }),
+  const { data: systems, isLoading, isError } = useQuery({
+    queryKey: ['full-schedule'],
+    queryFn: fetchFullSchedule,
   });
 
-  const activeSystemId = systemId ?? systems?.[0]?.id ?? null;
-  const activeSystem = systems?.find((s) => s.id === activeSystemId);
-  const activeCinemaId = cinemaId ?? activeSystem?.cinemas[0]?.id ?? null;
+  const activeSystem = systems?.find((s) => s.code === systemCode) ?? systems?.[0];
+  const activeCluster =
+    activeSystem?.clusters.find((c) => c.code === clusterCode) ?? activeSystem?.clusters[0];
+
+  // Reset the cluster whenever the brand changes so a stale cluster from the
+  // previous brand can never stay selected.
+  useEffect(() => {
+    setClusterCode(null);
+    setDate(null);
+  }, [systemCode]);
 
   useEffect(() => {
-    setCinemaId(null);
-  }, [activeSystemId]);
+    setDate(null);
+  }, [clusterCode]);
 
-  const movieIds = useMemo(() => (liveMovies ?? []).map((m) => m.id), [liveMovies]);
+  const dates = useMemo(() => {
+    const set = new Set<string>();
+    for (const movie of activeCluster?.movies ?? []) {
+      for (const st of movie.showtimes) set.add(st.date);
+    }
+    return Array.from(set).sort();
+  }, [activeCluster]);
 
-  const { data: schedule, isLoading } = useQuery({
-    queryKey: ['cinema-schedule', activeCinemaId, date, movieIds],
-    queryFn: () => fetchScheduleByCinema(activeCinemaId!, date, movieIds),
-    enabled: !!activeCinemaId && movieIds.length > 0,
-  });
+  const activeDate = date ?? dates[0] ?? null;
+
+  const moviesForDate = useMemo(
+    () =>
+      (activeCluster?.movies ?? [])
+        .map((m) => ({ ...m, showtimes: m.showtimes.filter((st) => st.date === activeDate) }))
+        .filter((m) => m.showtimes.length > 0),
+    [activeCluster, activeDate],
+  );
+
+  if (isLoading) {
+    return <div className="container-app py-8 text-text-muted">Đang tải hệ thống rạp...</div>;
+  }
+
+  if (isError || !systems?.length) {
+    return (
+      <div className="container-app py-8">
+        <EmptyState
+          title="Không tải được hệ thống rạp"
+          description="Không thể kết nối tới máy chủ. Vui lòng thử lại sau."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container-app py-8">
       <h1 className="mb-6 text-2xl font-semibold">Cụm rạp</h1>
 
-      <div className="mb-6 flex flex-wrap gap-4">
-        {(systems ?? []).map((system) => (
+      <div className="mb-6 flex flex-wrap gap-3">
+        {systems.map((system) => (
           <button
-            key={system.id}
+            key={system.code}
             type="button"
-            onClick={() => setSystemId(system.id)}
-            className={`flex h-16 w-16 flex-col items-center justify-center rounded-full border-2 text-lg font-bold transition ${
-              system.id === activeSystemId
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border bg-surface text-text-muted hover:border-primary/50'
-            }`}
+            onClick={() => setSystemCode(system.code)}
             title={system.name}
+            aria-pressed={system.code === activeSystem?.code}
+            className={`flex h-16 w-16 items-center justify-center rounded-full border-2 transition ${
+              system.code === activeSystem?.code
+                ? 'border-primary bg-primary/10'
+                : 'border-border bg-surface hover:border-primary/50'
+            }`}
           >
-            {system.shortName.slice(0, 2).toUpperCase()}
+            <img src={system.logo} alt={system.name} loading="lazy" className="h-10 w-10 object-contain" />
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-        <div className="flex flex-col gap-2">
-          {(activeSystem?.cinemas ?? []).map((cinema) => (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+        <div className="flex max-h-[560px] flex-col gap-2 overflow-y-auto pr-1">
+          {(activeSystem?.clusters ?? []).map((cluster) => (
             <button
-              key={cinema.id}
+              key={cluster.code}
               type="button"
-              onClick={() => setCinemaId(cinema.id)}
+              onClick={() => setClusterCode(cluster.code)}
               className={`rounded-lg border p-3 text-left transition ${
-                cinema.id === activeCinemaId
+                cluster.code === activeCluster?.code
                   ? 'border-primary bg-primary/10'
                   : 'border-border bg-surface hover:border-primary/40'
               }`}
             >
-              <p className="font-medium">{cinema.name}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
-                <MapPin size={12} /> {cinema.address}, {cinema.city}
+              <p className="text-sm font-medium">{cluster.name}</p>
+              <p className="mt-1 flex items-start gap-1.5 text-xs text-text-muted">
+                <MapPin size={12} className="mt-0.5 shrink-0" /> {cluster.address}
               </p>
             </button>
           ))}
-          {activeSystem && activeSystem.cinemas.length === 0 && (
-            <p className="text-sm text-text-muted">Chưa có rạp trong hệ thống này.</p>
-          )}
         </div>
 
         <div>
-          <DateSelector dates={dates} activeDate={date} onSelect={setDate} />
-
-          {isLoading && <p className="text-sm text-text-muted">Đang tải lịch chiếu...</p>}
-
-          {!isLoading && (schedule ?? []).length === 0 && (
-            <p className="rounded-lg border border-border bg-surface p-4 text-sm text-text-muted">
-              Không có suất chiếu nào tại rạp này trong ngày đã chọn.
-            </p>
+          {dates.length > 0 && activeDate && (
+            <DateSelector dates={dates} activeDate={activeDate} onSelect={setDate} />
           )}
 
-          <div className="flex flex-col gap-3">
-            {(schedule ?? []).map((entry) => (
-              <div key={entry.movieId} className="flex gap-3 rounded-lg border border-border bg-surface p-3">
-                <PosterPlaceholder
-                  label={entry.movieName}
-                  src={entry.posterUrl}
-                  className="aspect-[2/3] w-16 shrink-0"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    {entry.ageRating && <AgeBadge rating={entry.ageRating} />}
-                    <p className="font-medium">{entry.movieName}</p>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {entry.showtimes.map((st) => {
-                      const disabled = st.status === 'SOLD_OUT' || st.status === 'EXPIRED';
-                      return (
+          {moviesForDate.length === 0 ? (
+            <p className="rounded-lg border border-border bg-surface p-4 text-sm text-text-muted">
+              Rạp này chưa có lịch chiếu.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {moviesForDate.map((movie) => (
+                <div
+                  key={movie.movieId}
+                  className="flex gap-3 rounded-lg border border-border bg-surface p-3"
+                >
+                  <PosterPlaceholder
+                    label={movie.movieName}
+                    src={movie.posterUrl}
+                    className="aspect-[2/3] w-16 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{movie.movieName}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {movie.showtimes.map((st) => (
                         <button
                           key={st.id}
                           type="button"
-                          disabled={disabled}
-                          onClick={() => navigate(`/booking/${st.id}`)}
-                          className={`flex flex-col items-center rounded-md border px-3 py-1.5 text-sm transition ${statusStyle[st.status]}`}
+                          onClick={() =>
+                            navigate(`/booking/${st.id}`, { state: { startsAt: st.startsAt } })
+                          }
+                          className="flex flex-col items-center rounded-md border border-border px-3 py-1.5 text-sm transition hover:border-primary hover:text-primary"
                         >
                           <span>{st.time}</span>
-                          <span className="text-[10px] uppercase text-text-muted">{st.roomType}</span>
+                          <span className="text-[10px] uppercase text-text-muted">{st.roomName}</span>
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

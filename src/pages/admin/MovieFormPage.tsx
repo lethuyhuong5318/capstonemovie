@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   createLiveMovie,
   fetchLiveMovieById,
@@ -86,18 +87,20 @@ export default function MovieFormPage() {
       const payload = { ...values, posterFile };
       return movieId ? updateLiveMovie(movieId, payload) : createLiveMovie(payload);
     },
-    onSuccess: () => {
+    onSuccess: (movie) => {
       queryClient.invalidateQueries({ queryKey: ['admin-movies'] });
       queryClient.invalidateQueries({ queryKey: ['live-movies'] });
+      queryClient.invalidateQueries({ queryKey: ['movie', movie.id] });
+      toast.success(movieId ? 'Cập nhật phim thành công' : 'Thêm phim thành công');
       navigate('/admin/movies');
     },
-    onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { content?: string } } })?.response?.data?.content ??
-        'Không thể lưu phim. Vui lòng thử lại.';
-      window.alert(message);
-    },
   });
+
+  const submitError = mutation.isError
+    ? mutation.error instanceof Error
+      ? mutation.error.message
+      : 'Không thể lưu phim. Vui lòng thử lại.'
+    : null;
 
   async function handlePosterChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -127,7 +130,9 @@ export default function MovieFormPage() {
   }
 
   const onSubmit = (values: FormValues) => {
-    if (!posterFile) {
+    // The API rejects a create without an image, but an update keeps the
+    // existing poster when no new file is attached — so only require it here.
+    if (!movieId && !posterFile) {
       setPosterError('Vui lòng chọn ảnh poster');
       return;
     }
@@ -211,6 +216,12 @@ export default function MovieFormPage() {
               <input type="checkbox" {...register('isHot')} /> Phim hot
             </label>
           </div>
+
+          {submitError && (
+            <p role="alert" className="rounded-md border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
+              {submitError}
+            </p>
+          )}
 
           <div className="flex gap-3">
             <button

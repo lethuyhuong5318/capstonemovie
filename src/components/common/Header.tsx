@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogOut, Menu, Search, MapPin, Ticket, User as UserIcon, X } from 'lucide-react';
 import Logo from '@/components/common/Logo';
 import { useAuthStore } from '@/store/authStore';
@@ -16,13 +16,18 @@ export default function Header() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [city, setCity] = useState(cities[0]);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState(searchParams.get('q') ?? '');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    setKeyword(isHome ? (searchParams.get('q') ?? '') : '');
+  }, [isHome, searchParams]);
 
   useEffect(() => {
     if (!isHome) return;
@@ -116,7 +121,7 @@ export default function Header() {
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                 {user.fullName.slice(0, 1).toUpperCase()}
               </span>
-              <span className="hidden sm:inline">{user.fullName.split(' ').slice(-1)[0]}</span>
+              <span className="hidden max-w-[8rem] truncate sm:inline">{user.fullName}</span>
             </button>
             {profileOpen && (
               <div

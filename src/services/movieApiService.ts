@@ -1,4 +1,4 @@
-import { cybersoftApi, CYBERSOFT_MA_NHOM } from '@/lib/cybersoftApi';
+import { cybersoftApi, CYBERSOFT_MA_NHOM, cybersoftErrorMessage } from '@/lib/cybersoftApi';
 import type { AgeRating, Movie } from '@/types';
 
 interface CyberSoftMovie {
@@ -29,19 +29,7 @@ function ageRatingFromRating(danhGia: number): AgeRating {
   return 'P';
 }
 
-/**
- * A few otherwise-legitimate movies on the shared `GP01` sandbox have had their
- * poster overwritten by another student's test upload (e.g. movie 1283's image
- * is currently an unrelated school timetable screenshot). We can't fix the file
- * on the shared account, so we substitute a same-franchise poster that's already
- * hosted there instead of showing the broken image.
- */
-const POSTER_OVERRIDES: Record<number, string> = {
-  1283: 'https://movienew.cybersoft.edu.vn/hinhanh/latmat7_gp01.jpg', // Lật mặt 48h → ảnh gốc bị đè, dùng tạm poster Lật mặt 7
-};
-
 export function mapCyberSoftMovie(raw: CyberSoftMovie): Movie {
-  const posterOverride = POSTER_OVERRIDES[raw.maPhim];
   return {
     id: raw.maPhim,
     name: raw.tenPhim,
@@ -60,8 +48,8 @@ export function mapCyberSoftMovie(raw: CyberSoftMovie): Movie {
     isShowing: raw.dangChieu,
     isHot: raw.hot,
     rating: raw.danhGia,
-    posterUrl: posterOverride ?? raw.hinhAnh,
-    backdropUrl: posterOverride ?? raw.hinhAnh,
+    posterUrl: raw.hinhAnh,
+    backdropUrl: raw.hinhAnh,
   };
 }
 
@@ -84,22 +72,14 @@ export function getCachedLiveMovie(id: number): Movie | undefined {
 }
 
 /**
- * Sandbox `GP01` is shared by every student on the bootcamp; other students'
- * throwaway test entries (created while testing their own CRUD screens) show
- * up in the same catalog. We have no write access to delete other people's
- * data on the shared account, so we hide known/likely test entries client-side
- * instead of showing them to our own users.
+ * Guards against throwaway entries other students leave behind on the shared
+ * sandbox (names like `test1`, `Movie 1786111781058`, `edit 1`). The group's own
+ * catalog is clean today, so this normally filters nothing.
  */
-const KNOWN_JUNK_MOVIE_IDS = new Set([
-  15600, 15601, 15602, 15603, 15604, 15605, 15606, 15607, 15608, 15612, 15613,
-  15614, 15615, 15616, 15617, 15618, 15619, 15620, 15621, 15622, 15626, 15627,
-  15628, 15629, 15630, 15631, 15632, 15633,
-]);
-
 const JUNK_NAME_PATTERN = /\btest\d*\b|\d{9,}|^[a-z]{5,}$|^edit\b/i;
 
 function isJunkMovie(movie: Movie): boolean {
-  return KNOWN_JUNK_MOVIE_IDS.has(movie.id) || JUNK_NAME_PATTERN.test(movie.name.trim());
+  return JUNK_NAME_PATTERN.test(movie.name.trim());
 }
 
 export async function fetchLiveMovies(filter: LiveMovieFilter = {}): Promise<Movie[]> {
@@ -172,29 +152,44 @@ function buildMovieFormData(values: LiveMovieFormValues, extra?: Record<string, 
   return form;
 }
 
+export class MovieWriteError extends Error {}
+
 export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movie> {
-  const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
-    'QuanLyPhim/ThemPhimUploadHinh',
-    buildMovieFormData(values),
-    { headers: { 'Content-Type': 'multipart/form-data' } },
-  );
-  const movie = mapCyberSoftMovie(res.data.content);
-  cacheMovies([movie]);
-  return movie;
+  try {
+    const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
+      'QuanLyPhim/ThemPhimUploadHinh',
+      buildMovieFormData(values),
+    );
+    const movie = mapCyberSoftMovie(res.data.content);
+    cacheMovies([movie]);
+    return movie;
+  } catch (error) {
+    throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể thêm phim. Vui lòng thử lại.'));
+  }
 }
 
 export async function updateLiveMovie(id: number, values: LiveMovieFormValues): Promise<Movie> {
-  const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
-    'QuanLyPhim/CapNhatPhimUpload',
-    buildMovieFormData(values, { maPhim: String(id) }),
-    { headers: { 'Content-Type': 'multipart/form-data' } },
-  );
-  const movie = mapCyberSoftMovie(res.data.content);
-  cacheMovies([movie]);
-  return movie;
+  try {
+    // `maPhim` is required by the update contract (create does not take it), and
+    // `File` is only appended when the admin actually picked a new poster — the
+    // API keeps the existing image when the field is absent.
+    const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
+      'QuanLyPhim/CapNhatPhimUpload',
+      buildMovieFormData(values, { maPhim: String(id) }),
+    );
+    const movie = mapCyberSoftMovie(res.data.content);
+    cacheMovies([movie]);
+    return movie;
+  } catch (error) {
+    throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể lưu phim. Vui lòng thử lại.'));
+  }
 }
 
 export async function deleteLiveMovie(id: number): Promise<void> {
-  await cybersoftApi.delete('QuanLyPhim/XoaPhim', { params: { MaPhim: id } });
-  liveMovieCache.delete(id);
+  try {
+    await cybersoftApi.delete('QuanLyPhim/XoaPhim', { params: { MaPhim: id } });
+    liveMovieCache.delete(id);
+  } catch (error) {
+    throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể xóa phim. Vui lòng thử lại.'));
+  }
 }

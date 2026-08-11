@@ -1,35 +1,36 @@
 import { useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
-import type { Seat } from '@/types';
+import type { TicketSeat } from '@/services/ticketApiService';
+
+const SEATS_PER_ROW = 10;
 
 interface Props {
-  seats: Seat[];
-  selectedCodes: string[];
-  onToggle: (seat: Seat) => void;
+  seats: TicketSeat[];
+  selectedIds: number[];
+  onToggle: (seat: TicketSeat) => void;
 }
 
-function groupByRow(seats: Seat[]) {
-  const map = new Map<string, Seat[]>();
-  for (const seat of seats) {
-    const row = seat.code[0];
-    const arr = map.get(row) ?? [];
+/** The API returns a flat, sequentially numbered list — lay it out as rows of 10. */
+function groupByRow(seats: TicketSeat[]) {
+  const rows = new Map<string, TicketSeat[]>();
+  seats.forEach((seat, index) => {
+    const rowLetter = String.fromCharCode(65 + Math.floor(index / SEATS_PER_ROW));
+    const arr = rows.get(rowLetter) ?? [];
     arr.push(seat);
-    map.set(row, arr);
-  }
-  return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    rows.set(rowLetter, arr);
+  });
+  return Array.from(rows.entries());
 }
 
-function seatShapeClass(seat: Seat, isSelected: boolean, isBooked: boolean) {
-  const base = 'flex h-7 w-7 items-center justify-center text-[10px] font-semibold transition';
-  const shape = seat.type === 'COUPLE' ? 'rounded-md w-9' : 'rounded-t-md rounded-b-sm';
+function seatClass(seat: TicketSeat, isSelected: boolean) {
+  const base =
+    'flex h-7 w-7 items-center justify-center rounded-t-md rounded-b-sm text-[10px] font-semibold transition';
 
-  if (isBooked) return `${base} ${shape} cursor-not-allowed bg-white/5 text-text-muted/40`;
-  if (isSelected)
-    return `${base} ${shape} scale-110 bg-primary text-white shadow-lg shadow-primary/30`;
-  if (seat.type === 'VIP') return `${base} ${shape} bg-accent/25 text-accent hover:bg-accent/40`;
-  if (seat.type === 'COUPLE')
-    return `${base} ${shape} bg-fuchsia-500/25 text-fuchsia-300 hover:bg-fuchsia-500/40`;
-  return `${base} ${shape} bg-surface-elevated hover:bg-white/10`;
+  if (seat.bookedByMe) return `${base} cursor-not-allowed bg-success/40 text-white`;
+  if (seat.booked) return `${base} cursor-not-allowed bg-white/5 text-text-muted/40`;
+  if (isSelected) return `${base} scale-110 bg-primary text-white shadow-lg shadow-primary/30`;
+  if (seat.type === 'VIP') return `${base} bg-accent/25 text-accent hover:bg-accent/40`;
+  return `${base} bg-surface-elevated hover:bg-white/10`;
 }
 
 function pinchDistance(touches: React.TouchList) {
@@ -37,7 +38,7 @@ function pinchDistance(touches: React.TouchList) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
-export default function SeatMap({ seats, selectedCodes, onToggle }: Props) {
+export default function SeatMap({ seats, selectedIds, onToggle }: Props) {
   const rows = groupByRow(seats);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -70,14 +71,6 @@ export default function SeatMap({ seats, selectedCodes, onToggle }: Props) {
     dragRef.current = null;
   }
 
-  function zoom(delta: number) {
-    setScale((s) => clampScale(s + delta));
-  }
-  function reset() {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-  }
-
   return (
     <div className="flex flex-col items-center gap-5">
       <div
@@ -99,26 +92,31 @@ export default function SeatMap({ seats, selectedCodes, onToggle }: Props) {
             <div key={row} className="flex items-center gap-1.5">
               <span className="w-4 text-xs text-text-muted">{row}</span>
               <div className="flex gap-1.5">
-                {rowSeats
-                  .sort((a, b) => Number(a.code.slice(1)) - Number(b.code.slice(1)))
-                  .map((seat) => {
-                    const isSelected = selectedCodes.includes(seat.code);
-                    const isBooked = seat.status === 'BOOKED';
-                    return (
-                      <button
-                        key={seat.code}
-                        type="button"
-                        disabled={isBooked}
-                        onClick={() => onToggle(seat)}
-                        title={`${seat.code} · ${seat.type} · ${seat.price.toLocaleString('vi-VN')}đ`}
-                        aria-label={`Ghế ${seat.code}, ${seat.type}, ${seat.price.toLocaleString('vi-VN')}đ${isBooked ? ', đã đặt' : isSelected ? ', đang chọn' : ', còn trống'}`}
-                        aria-pressed={isSelected}
-                        className={seatShapeClass(seat, isSelected, isBooked)}
-                      >
-                        {seat.code.slice(1)}
-                      </button>
-                    );
-                  })}
+                {rowSeats.map((seat) => {
+                  const isSelected = selectedIds.includes(seat.id);
+                  const disabled = seat.booked;
+                  const stateLabel = seat.bookedByMe
+                    ? 'bạn đã đặt'
+                    : seat.booked
+                      ? 'đã có người đặt'
+                      : isSelected
+                        ? 'đang chọn'
+                        : 'còn trống';
+                  return (
+                    <button
+                      key={seat.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onToggle(seat)}
+                      title={`Ghế ${seat.code} · ${seat.type} · ${seat.price.toLocaleString('vi-VN')}đ`}
+                      aria-label={`Ghế ${seat.code}, ${seat.type === 'VIP' ? 'VIP' : 'thường'}, ${seat.price.toLocaleString('vi-VN')}đ, ${stateLabel}`}
+                      aria-pressed={isSelected}
+                      className={seatClass(seat, isSelected)}
+                    >
+                      {seat.code}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -126,13 +124,31 @@ export default function SeatMap({ seats, selectedCodes, onToggle }: Props) {
       </div>
 
       <div className="flex items-center gap-2 sm:hidden">
-        <button type="button" onClick={() => zoom(-0.25)} className="rounded-full border border-border p-2">
+        <button
+          type="button"
+          onClick={() => setScale((s) => clampScale(s - 0.25))}
+          aria-label="Thu nhỏ sơ đồ ghế"
+          className="rounded-full border border-border p-2"
+        >
           <Minus size={16} />
         </button>
-        <button type="button" onClick={reset} className="rounded-full border border-border p-2">
+        <button
+          type="button"
+          onClick={() => {
+            setScale(1);
+            setOffset({ x: 0, y: 0 });
+          }}
+          aria-label="Đặt lại sơ đồ ghế"
+          className="rounded-full border border-border p-2"
+        >
           <RotateCcw size={16} />
         </button>
-        <button type="button" onClick={() => zoom(0.25)} className="rounded-full border border-border p-2">
+        <button
+          type="button"
+          onClick={() => setScale((s) => clampScale(s + 0.25))}
+          aria-label="Phóng to sơ đồ ghế"
+          className="rounded-full border border-border p-2"
+        >
           <Plus size={16} />
         </button>
         <span className="text-xs text-text-muted">Chạm 2 ngón để phóng to</span>
@@ -141,9 +157,9 @@ export default function SeatMap({ seats, selectedCodes, onToggle }: Props) {
       <div className="flex flex-wrap justify-center gap-4 text-xs text-text-muted">
         <Legend swatchClass="rounded-t-md bg-surface-elevated" label="Ghế thường" />
         <Legend swatchClass="rounded-t-md bg-accent/25" label="Ghế VIP" />
-        <Legend swatchClass="rounded-md w-5 bg-fuchsia-500/25" label="Ghế đôi" />
         <Legend swatchClass="rounded-t-md bg-primary" label="Đang chọn" />
         <Legend swatchClass="rounded-t-md bg-white/5" label="Đã đặt" />
+        <Legend swatchClass="rounded-t-md bg-success/40" label="Bạn đã đặt" />
       </div>
     </div>
   );

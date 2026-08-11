@@ -38,7 +38,6 @@ export default function AdminLayout() {
   const location = useLocation();
 
   const segments = location.pathname.split('/').filter(Boolean);
-
   const sidebarContent = (
     <>
       <div className={`mb-8 flex items-center gap-2 px-1 ${collapsed ? 'justify-center' : ''}`}>

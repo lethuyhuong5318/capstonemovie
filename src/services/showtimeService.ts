@@ -1,9 +1,10 @@
-import { showtimes, findShowtime, nextShowtimeId, ensureShowtimesForMovie } from '@/mocks/showtimes';
+import { showtimes, findShowtime, ensureShowtimesForMovie } from '@/mocks/showtimes';
 import { cinemaSystems } from '@/mocks/cinemas';
 import { movies } from '@/mocks/movies';
 import { getCachedLiveMovie } from '@/services/movieApiService';
 import { getSeatsForShowtime, computeShowtimeStatus } from '@/mocks/seats';
 import { delay } from '@/services/delay';
+import { cybersoftApi, cybersoftErrorMessage } from '@/lib/cybersoftApi';
 import type { Movie, Seat, Showtime, ShowtimeStatus } from '@/types';
 
 export interface ShowtimeWithStatus extends Showtime {
@@ -131,22 +132,23 @@ export async function fetchSeatsByShowtime(showtimeId: number): Promise<Seat[]> 
 
 export interface ShowtimeFormValues {
   movieId: number;
-  cinemaSystemId: number;
-  cinemaId: number;
+  roomId: number;
   date: string;
   time: string;
   price: number;
 }
 
 export async function createShowtime(values: ShowtimeFormValues) {
-  const cinema = cinemaSystems.flatMap((s) => s.cinemas).find((c) => c.id === values.cinemaId);
-  const roomId = cinema?.rooms[0]?.id ?? 1;
-  const record: Showtime = {
-    id: nextShowtimeId(),
-    roomId,
-    roomType: cinema?.rooms[0]?.roomType ?? '2D',
-    ...values,
-  };
-  showtimes.push(record);
-  return delay(record);
+  const [year, month, day] = values.date.split('-');
+  try {
+    const response = await cybersoftApi.post('QuanLyDatVe/TaoLichChieu', {
+      maPhim: values.movieId,
+      ngayChieuGioChieu: `${day}/${month}/${year} ${values.time}:00`,
+      maRap: values.roomId,
+      giaVe: values.price,
+    });
+    return response.data.content;
+  } catch (error) {
+    throw new Error(cybersoftErrorMessage(error, 'Tạo lịch chiếu thất bại. Vui lòng thử lại.'));
+  }
 }

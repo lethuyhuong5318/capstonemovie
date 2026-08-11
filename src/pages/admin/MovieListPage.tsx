@@ -37,10 +37,9 @@ export default function MovieListPage() {
       setDeleteTarget(null);
     },
     onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { content?: string } } })?.response?.data?.content ??
-        'Không thể xóa phim này (có thể đã có lịch chiếu hoặc đặt vé).';
-      toast.error(message);
+      toast.error(
+        err instanceof Error ? err.message : 'Không thể xóa phim này. Vui lòng thử lại.',
+      );
       setDeleteTarget(null);
     },
   });

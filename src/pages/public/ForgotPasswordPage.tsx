@@ -38,6 +38,13 @@ export default function ForgotPasswordPage() {
               className="input"
             />
           </label>
+          {mutation.isError && (
+            <p role="alert" className="rounded-md border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
+              {mutation.error instanceof Error
+                ? mutation.error.message
+                : 'Không gửi được yêu cầu. Vui lòng thử lại.'}
+            </p>
+          )}
           <button
             type="submit"
             disabled={mutation.isPending}

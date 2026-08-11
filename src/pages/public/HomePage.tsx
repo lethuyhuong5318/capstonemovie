@@ -3,8 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Clock, Play, Star, Ticket } from 'lucide-react';
 import { fetchLiveMovies } from '@/services/movieApiService';
-import { fetchCinemaSystems } from '@/services/cinemaService';
-import { fetchShowtimesByMovie } from '@/services/showtimeService';
+import { fetchCinemaBrands, fetchShowtimesForMovie } from '@/services/cinemaApiService';
 import MovieCard from '@/components/movie/MovieCard';
 import TrailerModal from '@/components/movie/TrailerModal';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
@@ -31,9 +30,9 @@ export default function HomePage() {
     queryFn: () => fetchLiveMovies(),
   });
 
-  const { data: systems } = useQuery({
-    queryKey: ['cinema-systems'],
-    queryFn: fetchCinemaSystems,
+  const { data: brands } = useQuery({
+    queryKey: ['cinema-brands'],
+    queryFn: fetchCinemaBrands,
   });
 
   const hotMovies = useMemo(() => (allMovies ?? []).filter((m) => m.isHot), [allMovies]);
@@ -56,30 +55,44 @@ export default function HomePage() {
   }, [allMovies, tab, keyword]);
 
   const [quickMovie, setQuickMovie] = useState<number | undefined>();
-  const [quickCinema, setQuickCinema] = useState<number | undefined>();
+  const [quickCluster, setQuickCluster] = useState<string | undefined>();
   const [quickDate, setQuickDate] = useState<string | undefined>();
 
   const { data: quickShowtimes } = useQuery({
-    queryKey: ['quick-showtimes', quickMovie],
-    queryFn: () => fetchShowtimesByMovie(quickMovie!),
+    queryKey: ['showtimes', quickMovie],
+    queryFn: () => fetchShowtimesForMovie(quickMovie!),
     enabled: !!quickMovie,
   });
 
-  const quickDates = useMemo(() => {
-    const set = new Set<string>();
-    for (const s of quickShowtimes ?? []) for (const c of s.cinemas) for (const d of c.dates) set.add(d.date);
-    return Array.from(set).sort();
+  /** Clusters that actually screen the chosen movie. */
+  const quickClusters = useMemo(() => {
+    const list: Array<{ code: string; name: string }> = [];
+    for (const s of quickShowtimes ?? []) {
+      for (const c of s.clusters) list.push({ code: c.code, name: `${s.name} — ${c.name}` });
+    }
+    return list;
   }, [quickShowtimes]);
 
-  const quickShowtimesForSelection = useMemo(() => {
-    if (!quickCinema || !quickDate) return [];
+  const quickDates = useMemo(() => {
+    if (!quickCluster) return [];
+    const set = new Set<string>();
     for (const s of quickShowtimes ?? []) {
-      const cinema = s.cinemas.find((c) => c.id === quickCinema);
-      const day = cinema?.dates.find((d) => d.date === quickDate);
-      if (day) return day.showtimes;
+      for (const c of s.clusters) {
+        if (c.code !== quickCluster) continue;
+        for (const st of c.showtimes) set.add(st.date);
+      }
+    }
+    return Array.from(set).sort();
+  }, [quickShowtimes, quickCluster]);
+
+  const quickShowtimesForSelection = useMemo(() => {
+    if (!quickCluster || !quickDate) return [];
+    for (const s of quickShowtimes ?? []) {
+      const cluster = s.clusters.find((c) => c.code === quickCluster);
+      if (cluster) return cluster.showtimes.filter((st) => st.date === quickDate);
     }
     return [];
-  }, [quickShowtimes, quickCinema, quickDate]);
+  }, [quickShowtimes, quickCluster, quickDate]);
 
   return (
     <div>
@@ -159,7 +172,7 @@ export default function HomePage() {
               value={quickMovie ?? ''}
               onChange={(e) => {
                 setQuickMovie(Number(e.target.value) || undefined);
-                setQuickCinema(undefined);
+                setQuickCluster(undefined);
                 setQuickDate(undefined);
               }}
             >
@@ -172,16 +185,19 @@ export default function HomePage() {
             </select>
           </QuickField>
 
-          <QuickField label="Hệ thống rạp">
+          <QuickField label="Rạp chiếu">
             <select
               className="input !bg-surface-elevated"
-              value={quickCinema ?? ''}
-              onChange={(e) => setQuickCinema(Number(e.target.value) || undefined)}
+              value={quickCluster ?? ''}
+              onChange={(e) => {
+                setQuickCluster(e.target.value || undefined);
+                setQuickDate(undefined);
+              }}
               disabled={!quickMovie}
             >
-              <option value="">Chọn rạp</option>
-              {(systems ?? []).flatMap((s) => s.cinemas).map((c) => (
-                <option key={c.id} value={c.id}>
+              <option value="">{quickMovie && quickClusters.length === 0 ? 'Chưa có rạp chiếu' : 'Chọn rạp'}</option>
+              {quickClusters.map((c) => (
+                <option key={c.code} value={c.code}>
                   {c.name}
                 </option>
               ))}
@@ -193,7 +209,7 @@ export default function HomePage() {
               className="input !bg-surface-elevated"
               value={quickDate ?? ''}
               onChange={(e) => setQuickDate(e.target.value || undefined)}
-              disabled={!quickCinema}
+              disabled={!quickCluster}
             >
               <option value="">Chọn ngày</option>
               {quickDates.map((d) => (
@@ -209,7 +225,8 @@ export default function HomePage() {
               className="input !bg-surface-elevated"
               disabled={!quickDate || quickShowtimesForSelection.length === 0}
               onChange={(e) => {
-                if (e.target.value) navigate(`/booking/${e.target.value}`);
+                const picked = quickShowtimesForSelection.find((st) => String(st.id) === e.target.value);
+                if (picked) navigate(`/booking/${picked.id}`, { state: { startsAt: picked.startsAt } });
               }}
             >
               <option value="">Chọn suất & mua vé</option>
@@ -256,25 +273,27 @@ export default function HomePage() {
 
       <div className="border-t border-border bg-surface/40 py-14" id="cinemas">
         <div className="container-app">
-          <h2 className="mb-6 text-2xl font-bold">Hệ thống rạp</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {(systems ?? []).map((system) => (
-              <div key={system.id} className="rounded-xl border border-border bg-surface p-5">
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 font-bold text-primary">
-                    {system.shortName.slice(0, 1)}
-                  </span>
-                  <p className="font-semibold">{system.name}</p>
-                </div>
-                <ul className="flex flex-col gap-2.5">
-                  {system.cinemas.map((c) => (
-                    <li key={c.id} className="text-sm text-text-muted">
-                      <p className="text-text">{c.name}</p>
-                      <p className="text-xs">{c.address}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">Hệ thống rạp</h2>
+            <Link to="/cinemas" className="text-sm text-primary hover:underline">
+              Xem lịch chiếu theo rạp →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {(brands ?? []).map((brand) => (
+              <Link
+                key={brand.code}
+                to="/cinemas"
+                className="flex flex-col items-center gap-2.5 rounded-xl border border-border bg-surface p-4 transition hover:border-primary/50"
+              >
+                <img
+                  src={brand.logo}
+                  alt={brand.name}
+                  loading="lazy"
+                  className="h-12 w-12 rounded-lg object-contain"
+                />
+                <p className="text-center text-xs font-medium">{brand.name}</p>
+              </Link>
             ))}
           </div>
         </div>

@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Play, Ticket, Star, MapPin } from 'lucide-react';
+import { Play, Ticket, Star } from 'lucide-react';
 import { fetchLiveMovieById } from '@/services/movieApiService';
-import { fetchShowtimesByMovie } from '@/services/showtimeService';
-import { cities } from '@/mocks/cinemas';
+import { fetchShowtimesForMovie } from '@/services/cinemaApiService';
 import TrailerModal from '@/components/movie/TrailerModal';
 import ShowtimeSelector from '@/components/cinema/ShowtimeSelector';
 import DateSelector from '@/components/cinema/DateSelector';
@@ -18,7 +17,6 @@ export default function MovieDetailPage() {
   const id = Number(movieId);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [city, setCity] = useState(cities[0]);
 
   const {
     data: movie,
@@ -30,17 +28,17 @@ export default function MovieDetailPage() {
     enabled: Number.isFinite(id),
   });
 
-  const { data: systems } = useQuery({
-    queryKey: ['showtimes', id, city],
-    queryFn: () => fetchShowtimesByMovie(id, city),
+  const { data: systems, isLoading: showtimesLoading } = useQuery({
+    queryKey: ['showtimes', id],
+    queryFn: () => fetchShowtimesForMovie(id),
     enabled: Number.isFinite(id),
   });
 
   const allDates = useMemo(() => {
     const set = new Set<string>();
     for (const system of systems ?? []) {
-      for (const cinema of system.cinemas) {
-        for (const d of cinema.dates) set.add(d.date);
+      for (const cluster of system.clusters) {
+        for (const st of cluster.showtimes) set.add(st.date);
       }
     }
     return Array.from(set).sort();
@@ -132,24 +130,14 @@ export default function MovieDetailPage() {
           <div id="showtimes" className="mt-10 scroll-mt-20">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Lịch chiếu</h2>
-              <div className="flex items-center gap-2 text-sm text-text-muted">
-                <MapPin size={16} />
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="input w-auto"
-                >
-                  {cities.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
-            {allDates.length === 0 ? (
-              <p className="text-text-muted">Chưa có lịch chiếu tại khu vực này.</p>
+            {showtimesLoading ? (
+              <p className="text-text-muted">Đang tải lịch chiếu...</p>
+            ) : allDates.length === 0 ? (
+              <p className="rounded-lg border border-border bg-surface p-4 text-sm text-text-muted">
+                Phim này chưa có lịch chiếu. Vui lòng quay lại sau.
+              </p>
             ) : (
               <>
                 <DateSelector dates={allDates} activeDate={activeDate} onSelect={setSelectedDate} />
