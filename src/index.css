@@ -126,12 +126,51 @@ select:focus-visible,
   scrollbar-width: none;
 }
 
+/* Subtle perspective reveal shared by customer pages. Content stays visible
+   without JavaScript; the class is only attached after the observer starts. */
+.scroll-reveal {
+  opacity: 0;
+  transform: perspective(1100px) translate3d(0, 24px, -28px) rotateX(3deg);
+  transform-origin: 50% 0;
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.is-revealed {
+  opacity: 1;
+  transform: perspective(1100px) translate3d(0, 0, 0) rotateX(0);
+  will-change: auto;
+}
+
+.cinema-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(24, 26, 32, 0.96), rgba(14, 16, 21, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+.cinema-screen {
+  height: 76px;
+  border-top: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.14), transparent 66%);
+  filter: drop-shadow(0 -6px 16px rgba(255, 255, 255, 0.08));
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
+  }
+
+  .scroll-reveal,
+  .scroll-reveal.is-revealed {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
   }
 }
 

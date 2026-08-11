@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, Clock3, MapPin, XCircle } from 'lucide-react';
 import {
   fetchTicketRoom,
   bookTickets,
@@ -161,21 +161,27 @@ export default function BookingPage() {
     : null;
 
   const summary = (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="text-xs uppercase tracking-wide text-text-muted">Suất chiếu</p>
-      <p className="mt-1 font-semibold">{room.movieName}</p>
-      <p className="text-sm text-text-muted">
-        {room.cinemaName} — {room.roomName}
-      </p>
-      <p className="text-sm text-text-muted">
-        {room.date}{showTime ? ` · ${showTime}` : ''}
-      </p>
+    <div className="cinema-panel overflow-hidden rounded-xl p-5 sm:p-6">
+      <h2 className="border-b border-white/10 pb-4 text-xl font-bold uppercase tracking-tight">Vé của bạn</h2>
+      <div className="mt-5 flex gap-4">
+        <img src={room.posterUrl} alt={`Poster ${room.movieName}`} width={76} height={112} className="h-28 w-[76px] shrink-0 rounded-md object-cover" />
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-lg font-bold leading-snug">{room.movieName}</p>
+          <span className="mt-2 inline-flex rounded bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">2D Digital</span>
+        </div>
+      </div>
 
-      <p className="mt-4 text-xs uppercase tracking-wide text-text-muted">Ghế đã chọn</p>
+      <div className="mt-5 space-y-3 border-b border-white/10 pb-5 text-sm text-text-muted">
+        <div className="flex items-start gap-3"><MapPin size={18} className="mt-0.5 shrink-0 text-primary" /><span>{room.cinemaName}<br /><span className="text-text">{room.roomName}</span></span></div>
+        <div className="flex items-start gap-3"><CalendarDays size={18} className="mt-0.5 shrink-0 text-primary" /><span>{room.date}</span></div>
+        {showTime && <div className="flex items-center gap-3"><Clock3 size={18} className="shrink-0 text-primary" /><span>{showTime}</span></div>}
+      </div>
+
+      <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Ghế đã chọn</p>
       {selected.length === 0 ? (
-        <p className="mt-1 text-sm text-text-muted">Chưa chọn ghế nào</p>
+        <p className="mt-2 text-sm text-text-muted">Chưa chọn ghế nào</p>
       ) : (
-        <ul className="mt-1 flex flex-col gap-1 text-sm">
+        <ul className="mt-2 flex flex-col gap-2 text-sm">
           {selected.map((s) => (
             <li key={s.id} className="flex justify-between">
               <span>
@@ -187,9 +193,9 @@ export default function BookingPage() {
         </ul>
       )}
 
-      <div className="mt-4 flex justify-between border-t border-border pt-3">
-        <span className="text-text-muted">Tổng cộng</span>
-        <span className="font-bold text-primary">{formatCurrency(grandTotal)}</span>
+      <div className="mt-5 flex items-end justify-between border-t border-white/10 pt-5">
+        <span className="text-sm text-text-muted">Tổng cộng</span>
+        <span className="text-2xl font-extrabold tabular-nums text-text">{formatCurrency(grandTotal)}</span>
       </div>
     </div>
   );
@@ -262,15 +268,20 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="container-app pb-28 pt-6 lg:pb-6">
-      <div className="mb-6 max-w-2xl">
+    <div className="container-app pb-28 pt-8 lg:pb-16">
+      <div className="mx-auto mb-10 max-w-3xl" data-scroll-reveal>
         <ProgressSteps current={2} />
       </div>
 
-      <h1 className="text-2xl font-semibold">Chọn ghế</h1>
-      <p className="mt-1 text-sm text-text-muted">
-        {room.movieName} · {room.cinemaName} — {room.roomName} · {room.date} {showTime ?? ''}
-      </p>
+      <header className="mb-10 text-center" data-scroll-reveal>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-primary">Chọn vị trí hoàn hảo</p>
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{room.movieName}</h1>
+        <p className="mx-auto mt-3 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-text-muted">
+          <span>{room.cinemaName}</span><span aria-hidden="true" className="h-1 w-1 rounded-full bg-white/20" />
+          <span>{room.roomName}</span><span aria-hidden="true" className="h-1 w-1 rounded-full bg-white/20" />
+          <span className="text-text">{room.date} {showTime ?? ''}</span>
+        </p>
+      </header>
 
       {selected.length > 0 && remaining <= 60 && (
         <div className="mt-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
@@ -279,22 +290,24 @@ export default function BookingPage() {
         </div>
       )}
 
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
-        <SeatMap seats={room.seats} selectedIds={selected.map((s) => s.id)} onToggle={toggleSeat} />
+      <div className="grid grid-cols-1 items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="cinema-panel rounded-xl px-3 py-8 sm:px-7 sm:py-10" data-scroll-reveal>
+          <SeatMap seats={room.seats} selectedIds={selected.map((s) => s.id)} onToggle={toggleSeat} />
+        </section>
 
-        <div className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+        <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start" data-scroll-reveal>
           <div className="flex flex-col gap-3">
             {summary}
             <button
               type="button"
               disabled={selected.length === 0}
               onClick={() => setStep('payment')}
-              className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold hover:bg-primary-hover disabled:opacity-40"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-bold uppercase tracking-wide transition hover:bg-primary-hover disabled:opacity-40"
             >
-              Tiếp tục thanh toán
+              Tiếp tục <ArrowRight size={18} aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </aside>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between border-t border-border bg-surface px-4 py-3 lg:hidden">
@@ -306,9 +319,9 @@ export default function BookingPage() {
           type="button"
           disabled={selected.length === 0}
           onClick={() => setStep('payment')}
-          className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold hover:bg-primary-hover disabled:opacity-40"
-        >
-          Tiếp tục
+        className="flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold hover:bg-primary-hover disabled:opacity-40"
+      >
+          Tiếp tục <ArrowRight size={17} aria-hidden="true" />
         </button>
       </div>
     </div>

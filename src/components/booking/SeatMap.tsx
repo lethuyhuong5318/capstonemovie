@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { Minus, Plus, RotateCcw, X } from 'lucide-react';
 import type { TicketSeat } from '@/services/ticketApiService';
 
 const SEATS_PER_ROW = 10;
@@ -24,13 +24,13 @@ function groupByRow(seats: TicketSeat[]) {
 
 function seatClass(seat: TicketSeat, isSelected: boolean) {
   const base =
-    'flex h-7 w-7 items-center justify-center rounded-t-md rounded-b-sm text-[10px] font-semibold transition';
+    'relative flex h-10 w-10 shrink-0 items-center justify-center rounded-t-md rounded-b-sm border text-[10px] font-bold transition-all duration-200 after:absolute after:-bottom-1 after:left-1 after:right-1 after:h-1 after:rounded-b after:bg-current after:opacity-20';
 
-  if (seat.bookedByMe) return `${base} cursor-not-allowed bg-success/40 text-white`;
-  if (seat.booked) return `${base} cursor-not-allowed bg-white/5 text-text-muted/40`;
-  if (isSelected) return `${base} scale-110 bg-primary text-white shadow-lg shadow-primary/30`;
-  if (seat.type === 'VIP') return `${base} bg-accent/25 text-accent hover:bg-accent/40`;
-  return `${base} bg-surface-elevated hover:bg-white/10`;
+  if (seat.bookedByMe) return `${base} cursor-not-allowed border-success/40 bg-success/20 text-success`;
+  if (seat.booked) return `${base} cursor-not-allowed border-white/5 bg-white/[0.03] text-text-muted/30`;
+  if (isSelected) return `${base} -translate-y-1 scale-105 border-primary bg-primary text-white shadow-[0_8px_24px_rgba(230,57,70,.34)]`;
+  if (seat.type === 'VIP') return `${base} border-accent bg-accent/5 text-accent hover:-translate-y-1 hover:bg-accent/15`;
+  return `${base} border-white/20 bg-transparent text-text hover:-translate-y-1 hover:border-white/50 hover:bg-white/5`;
 }
 
 function pinchDistance(touches: React.TouchList) {
@@ -72,26 +72,24 @@ export default function SeatMap({ seats, selectedIds, onToggle }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-5">
-      <div
-        className="w-full max-w-2xl overflow-hidden rounded-t-[100px] border-b-2 border-primary bg-gradient-to-b from-surface-elevated to-transparent py-2.5 text-center text-xs tracking-[0.3em] text-text-muted"
-        style={{ boxShadow: '0 12px 24px -12px rgba(230,57,70,0.45)' }}
-      >
-        MÀN HÌNH
+    <div className="flex w-full flex-col items-center gap-8">
+      <div className="w-full max-w-3xl px-4 pt-2 text-center">
+        <div className="cinema-screen" aria-hidden="true" />
+        <p className="-mt-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-text-muted">Màn hình</p>
       </div>
 
-      <div className="relative w-full max-w-2xl touch-none overflow-hidden rounded-lg border border-border bg-surface/40 p-4 sm:overflow-visible sm:border-0 sm:bg-transparent sm:p-0">
+      <div className="no-scrollbar relative w-full touch-none overflow-x-auto overflow-y-hidden px-2 py-4">
         <div
-          className="flex flex-col items-center gap-2 transition-transform duration-100"
+          className="mx-auto flex w-max min-w-max flex-col items-center gap-3 transition-transform duration-100"
           style={{ transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)` }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           {rows.map(([row, rowSeats]) => (
-            <div key={row} className="flex items-center gap-1.5">
-              <span className="w-4 text-xs text-text-muted">{row}</span>
-              <div className="flex gap-1.5">
+            <div key={row} className="flex items-center gap-3">
+              <span className={`w-5 text-center text-xs font-bold ${rowSeats[0]?.type === 'VIP' ? 'text-accent' : 'text-text-muted'}`}>{row}</span>
+              <div className="flex gap-2">
                 {rowSeats.map((seat) => {
                   const isSelected = selectedIds.includes(seat.id);
                   const disabled = seat.booked;
@@ -113,7 +111,7 @@ export default function SeatMap({ seats, selectedIds, onToggle }: Props) {
                       aria-pressed={isSelected}
                       className={seatClass(seat, isSelected)}
                     >
-                      {seat.code}
+                      {seat.booked ? <X size={14} aria-hidden="true" /> : seat.code}
                     </button>
                   );
                 })}
@@ -128,7 +126,7 @@ export default function SeatMap({ seats, selectedIds, onToggle }: Props) {
           type="button"
           onClick={() => setScale((s) => clampScale(s - 0.25))}
           aria-label="Thu nhỏ sơ đồ ghế"
-          className="rounded-full border border-border p-2"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-border"
         >
           <Minus size={16} />
         </button>
@@ -139,7 +137,7 @@ export default function SeatMap({ seats, selectedIds, onToggle }: Props) {
             setOffset({ x: 0, y: 0 });
           }}
           aria-label="Đặt lại sơ đồ ghế"
-          className="rounded-full border border-border p-2"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-border"
         >
           <RotateCcw size={16} />
         </button>
@@ -147,19 +145,21 @@ export default function SeatMap({ seats, selectedIds, onToggle }: Props) {
           type="button"
           onClick={() => setScale((s) => clampScale(s + 0.25))}
           aria-label="Phóng to sơ đồ ghế"
-          className="rounded-full border border-border p-2"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-border"
         >
           <Plus size={16} />
         </button>
         <span className="text-xs text-text-muted">Chạm 2 ngón để phóng to</span>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-4 text-xs text-text-muted">
-        <Legend swatchClass="rounded-t-md bg-surface-elevated" label="Ghế thường" />
-        <Legend swatchClass="rounded-t-md bg-accent/25" label="Ghế VIP" />
+      <div className="w-full border-t border-white/5 pt-6">
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 text-xs text-text-muted">
+        <Legend swatchClass="rounded-t-md border border-white/20 bg-transparent" label="Ghế thường" />
+        <Legend swatchClass="rounded-t-md border border-accent bg-accent/5" label="Ghế VIP" />
         <Legend swatchClass="rounded-t-md bg-primary" label="Đang chọn" />
         <Legend swatchClass="rounded-t-md bg-white/5" label="Đã đặt" />
         <Legend swatchClass="rounded-t-md bg-success/40" label="Bạn đã đặt" />
+        </div>
       </div>
     </div>
   );

@@ -11,12 +11,44 @@ function nextTransactionCode() {
 }
 
 export async function processPayment(_method: PaymentMethod): Promise<PaymentResult> {
-  const result = await delay(null, 1200);
-  void result;
-  const isSuccess = Math.random() > 0.15;
+  await delay(null, 900);
   return {
-    status: isSuccess ? 'PAID' : 'FAILED',
+    // Demo gateway: confirmation is deterministic. A production payment must
+    // only become PAID after a signed webhook from the payment provider.
+    status: 'PAID',
     transactionCode: nextTransactionCode(),
+  };
+}
+
+export interface VietQrConfig {
+  imageUrl: string | null;
+  bankId: string;
+  accountNo: string;
+  accountName: string;
+  transferContent: string;
+}
+
+export function createVietQrConfig(amount: number, orderCode: string): VietQrConfig {
+  const bankId = (import.meta.env.VITE_VIETQR_BANK_ID ?? '').trim();
+  const accountNo = (import.meta.env.VITE_VIETQR_ACCOUNT_NO ?? '').trim();
+  const accountName = (import.meta.env.VITE_VIETQR_ACCOUNT_NAME ?? '').trim();
+  const transferContent = `CINEWAVE ${orderCode}`.replace(/[^A-Z0-9 ]/gi, '').slice(0, 25);
+
+  if (!bankId || !accountNo || !accountName) {
+    return { imageUrl: null, bankId, accountNo, accountName, transferContent };
+  }
+
+  const query = new URLSearchParams({
+    amount: String(Math.max(0, Math.round(amount))),
+    addInfo: transferContent,
+    accountName,
+  });
+  return {
+    imageUrl: `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(accountNo)}-compact2.png?${query}`,
+    bankId,
+    accountNo,
+    accountName,
+    transferContent,
   };
 }
 

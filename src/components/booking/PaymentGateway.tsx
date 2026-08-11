@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Landmark, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Copy, Landmark, Loader2, QrCode, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '@/utils/format';
 import type { PaymentMethod } from '@/types';
+import { createVietQrConfig } from '@/services/paymentService';
 
 const banks = ['Vietcombank', 'Techcombank', 'MB Bank', 'VIB', 'BIDV', 'ACB', 'VPBank', 'Sacombank'];
 
-type Stage = 'redirecting' | 'select-bank' | 'otp';
+type Stage = 'redirecting' | 'select-bank' | 'otp' | 'qr';
 
 interface Props {
   method: PaymentMethod;
@@ -17,10 +18,18 @@ interface Props {
 }
 
 export default function PaymentGateway({ method, amount, orderCode, onConfirm, onCancel, pending }: Props) {
-  const [stage, setStage] = useState<Stage>(method === 'CARD' || method === 'BANK_TRANSFER' ? 'select-bank' : 'otp');
+  const [stage, setStage] = useState<Stage>(method === 'QR' ? 'qr' : method === 'CARD' || method === 'BANK_TRANSFER' ? 'select-bank' : 'otp');
   const [bank, setBank] = useState<string | null>(null);
   const [otp, setOtp] = useState('');
+  const [copied, setCopied] = useState(false);
   const otpValid = otp.trim().length === 6;
+  const vietQr = createVietQrConfig(amount, orderCode);
+
+  async function copyTransferContent() {
+    await navigator.clipboard.writeText(vietQr.transferContent);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
 
   if (stage === 'redirecting') {
     return (
@@ -46,6 +55,41 @@ export default function PaymentGateway({ method, amount, orderCode, onConfirm, o
           <span className="font-semibold text-primary">{formatCurrency(amount)}</span>
         </div>
       </div>
+
+      {stage === 'qr' && (
+        <div className="p-5">
+          <div className="mx-auto flex max-w-md flex-col items-center text-center">
+            {vietQr.imageUrl ? (
+              <img
+                src={vietQr.imageUrl}
+                alt={`Mã VietQR thanh toán đơn ${orderCode}`}
+                width={320}
+                height={380}
+                className="w-full max-w-[320px] rounded-lg bg-white p-2"
+              />
+            ) : (
+              <div className="flex aspect-square w-full max-w-[260px] flex-col items-center justify-center rounded-lg border border-dashed border-primary/50 bg-primary/5 p-6">
+                <QrCode size={72} className="mb-4 text-primary" aria-hidden="true" />
+                <p className="font-semibold">VietQR demo chưa cấu hình tài khoản nhận tiền</p>
+                <p className="mt-2 text-xs text-text-muted">Thêm thông tin VietQR trong file môi trường để hiển thị mã có thể quét.</p>
+              </div>
+            )}
+
+            <p className="mt-4 text-sm text-text-muted">Nội dung chuyển khoản</p>
+            <button type="button" onClick={copyTransferContent} className="mt-1 flex min-h-11 items-center gap-2 rounded-md border border-border px-4 font-mono text-sm font-semibold hover:border-primary/50">
+              {vietQr.transferContent} {copied ? <CheckCircle2 size={16} className="text-success" /> : <Copy size={16} />}
+            </button>
+            <p className="mt-3 text-xs leading-relaxed text-warning">Chế độ demo không thể kiểm tra tiền về tự động. Chỉ bấm xác nhận sau khi đã thử luồng quét QR.</p>
+          </div>
+
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onCancel} disabled={pending} className="min-h-11 rounded-md bg-surface-elevated px-4 py-2 text-sm hover:text-text disabled:opacity-40">Quay lại</button>
+            <button type="button" onClick={onConfirm} disabled={pending} className="min-h-11 rounded-md bg-primary px-5 py-2 text-sm font-semibold hover:bg-primary-hover disabled:opacity-40">
+              {pending ? 'Đang xác nhận...' : 'Tôi đã thanh toán (demo)'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {stage === 'select-bank' && (
         <div className="p-4">
