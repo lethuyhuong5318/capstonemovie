@@ -170,9 +170,8 @@ export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movi
 
 export async function updateLiveMovie(id: number, values: LiveMovieFormValues): Promise<Movie> {
   try {
-    // `maPhim` is required by the update contract (create does not take it), and
-    // `File` is only appended when the admin actually picked a new poster — the
-    // API keeps the existing image when the field is absent.
+    // `maPhim` and `File` are both required by CapNhatPhimUpload. MovieFormPage
+    // validates the file before this request so the API does not fail opaquely.
     const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
       'QuanLyPhim/CapNhatPhimUpload',
       buildMovieFormData(values, { maPhim: String(id) }),

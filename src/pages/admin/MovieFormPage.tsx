@@ -130,10 +130,15 @@ export default function MovieFormPage() {
   }
 
   const onSubmit = (values: FormValues) => {
-    // The API rejects a create without an image, but an update keeps the
-    // existing poster when no new file is attached — so only require it here.
-    if (!movieId && !posterFile) {
-      setPosterError('Vui lòng chọn ảnh poster');
+    // Both CyberSoft upload endpoints require a multipart `File`. In particular,
+    // CapNhatPhimUpload may terminate without a useful response when it is omitted,
+    // which browsers surface as a misleading network/CORS error.
+    if (!posterFile) {
+      setPosterError(
+        movieId
+          ? 'Vui lòng chọn lại ảnh poster trước khi cập nhật phim.'
+          : 'Vui lòng chọn ảnh poster.',
+      );
       return;
     }
     mutation.mutate(values);
@@ -162,6 +167,11 @@ export default function MovieFormPage() {
               )}
             </div>
             <input type="file" accept="image/*" onChange={handlePosterChange} disabled={isCompressing} className="text-xs" />
+            {movieId && !posterFile && (
+              <span className="mt-1 block text-xs text-warning">
+                API Cybersoft yêu cầu gửi lại poster khi cập nhật phim.
+              </span>
+            )}
             {posterError && (
               <span role="alert" className="mt-1 block text-xs text-error">
                 {posterError}
