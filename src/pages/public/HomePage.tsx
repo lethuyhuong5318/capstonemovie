@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Clock, Play, Star, Ticket } from 'lucide-react';
+import { Clock, Pause, Play, RefreshCw, Star, Ticket } from 'lucide-react';
 import { fetchLiveMovies } from '@/services/movieApiService';
 import { fetchCinemaBrands, fetchShowtimesForMovie } from '@/services/cinemaApiService';
 import MovieCard from '@/components/movie/MovieCard';
@@ -17,6 +17,7 @@ export default function HomePage() {
   const [tab, setTab] = useState<Tab>('showing');
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [slide, setSlide] = useState(0);
+  const [carouselPlaying, setCarouselPlaying] = useState(true);
   const [searchParams] = useSearchParams();
   const keyword = searchParams.get('q') ?? '';
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function HomePage() {
     data: allMovies,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['live-movies', 'all'],
     queryFn: () => fetchLiveMovies(),
@@ -38,10 +40,10 @@ export default function HomePage() {
   const hotMovies = useMemo(() => (allMovies ?? []).filter((m) => m.isHot), [allMovies]);
 
   useEffect(() => {
-    if (hotMovies.length < 2) return;
+    if (hotMovies.length < 2 || !carouselPlaying) return;
     const id = setInterval(() => setSlide((s) => (s + 1) % hotMovies.length), 6000);
     return () => clearInterval(id);
-  }, [hotMovies.length]);
+  }, [carouselPlaying, hotMovies.length]);
 
   const banner = hotMovies[slide % Math.max(hotMovies.length, 1)];
 
@@ -103,6 +105,8 @@ export default function HomePage() {
               <PosterPlaceholder
                 label={`Backdrop · ${banner.name}`}
                 src={banner.backdropUrl}
+                loading="eager"
+                fetchPriority="high"
                 className="h-full w-full"
                 rounded="rounded-none"
               />
@@ -133,31 +137,50 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setTrailerOpen(true)}
-                  className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
+                  className="flex min-h-11 items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
                 >
                   <Play size={16} /> Xem trailer
                 </button>
                 <Link
                   to={`/movies/${banner.id}`}
-                  className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-hover"
+                  className="flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-hover"
                 >
                   <Ticket size={16} /> Đặt vé ngay
                 </Link>
               </div>
             </div>
             {hotMovies.length > 1 && (
-              <div className="absolute bottom-6 right-6 z-10 flex items-center gap-2">
-                {hotMovies.map((m, i) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    aria-label={`Slide ${i + 1}`}
-                    onClick={() => setSlide(i)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === slide % hotMovies.length ? 'w-6 bg-primary' : 'w-2.5 bg-white/30'
-                    }`}
-                  />
-                ))}
+              <div className="absolute bottom-6 right-4 z-10 flex items-center gap-2 sm:right-6">
+                <button
+                  type="button"
+                  aria-label={carouselPlaying ? 'Tạm dừng trình chiếu' : 'Tiếp tục trình chiếu'}
+                  aria-pressed={!carouselPlaying}
+                  onClick={() => setCarouselPlaying((playing) => !playing)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
+                >
+                  {carouselPlaying ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <span className="rounded-full bg-black/50 px-3 py-2 text-xs font-medium text-white backdrop-blur sm:hidden">
+                  {(slide % hotMovies.length) + 1} / {hotMovies.length}
+                </span>
+                <div className="hidden items-center gap-1 sm:flex">
+                  {hotMovies.map((m, i) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-label={`Slide ${i + 1}`}
+                      onClick={() => setSlide(i)}
+                      aria-current={i === slide % hotMovies.length}
+                      className="flex h-11 w-11 items-center justify-center rounded-full"
+                    >
+                      <span
+                        className={`h-1.5 rounded-full transition-all ${
+                          i === slide % hotMovies.length ? 'w-6 bg-primary' : 'w-2.5 bg-white/40'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -257,6 +280,15 @@ export default function HomePage() {
           <EmptyState
             title="Không tải được danh sách phim"
             description="Không thể kết nối tới máy chủ phim. Vui lòng thử lại sau."
+            action={(
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-2 flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+              >
+                <RefreshCw size={16} /> Thử lại
+              </button>
+            )}
           />
         ) : (
           <>
@@ -328,7 +360,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+      className={`min-h-11 rounded-full px-4 py-2 text-sm font-medium transition ${
         active ? 'bg-primary text-white' : 'bg-surface text-text-muted hover:text-text'
       }`}
     >

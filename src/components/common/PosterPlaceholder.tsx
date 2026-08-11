@@ -5,6 +5,8 @@ interface Props {
   className?: string;
   rounded?: string;
   src?: string;
+  loading?: 'eager' | 'lazy';
+  fetchPriority?: 'high' | 'low' | 'auto';
 }
 
 export default function PosterPlaceholder({
@@ -12,6 +14,8 @@ export default function PosterPlaceholder({
   className = '',
   rounded = 'rounded-lg',
   src,
+  loading = 'lazy',
+  fetchPriority = 'auto',
 }: Props) {
   const [failed, setFailed] = useState(false);
 
@@ -20,7 +24,8 @@ export default function PosterPlaceholder({
       <img
         src={src}
         alt={label}
-        loading="lazy"
+        loading={loading}
+        fetchPriority={fetchPriority}
         decoding="async"
         onError={() => setFailed(true)}
         className={`border border-border object-cover ${rounded} ${className}`}

@@ -82,14 +82,19 @@ function isJunkMovie(movie: Movie): boolean {
   return JUNK_NAME_PATTERN.test(movie.name.trim());
 }
 
-export async function fetchLiveMovies(filter: LiveMovieFilter = {}): Promise<Movie[]> {
+async function fetchRawMovies(): Promise<CyberSoftMovie[]> {
   const res = await cybersoftApi.get<{ content: CyberSoftMovie[] }>(
     'QuanLyPhim/LayDanhSachPhim',
     { params: { maNhom: CYBERSOFT_MA_NHOM } },
   );
-  cacheMovies(res.data.content.map(mapCyberSoftMovie));
+  return res.data.content;
+}
 
-  let result = res.data.content.map(mapCyberSoftMovie).filter((m) => !isJunkMovie(m));
+export async function fetchLiveMovies(filter: LiveMovieFilter = {}): Promise<Movie[]> {
+  const content = await fetchRawMovies();
+  cacheMovies(content.map(mapCyberSoftMovie));
+
+  let result = content.map(mapCyberSoftMovie).filter((m) => !isJunkMovie(m));
   if (filter.status === 'showing') result = result.filter((m) => m.isShowing);
   if (filter.status === 'upcoming') result = result.filter((m) => m.isUpcoming);
   if (filter.keyword) {
@@ -154,7 +159,18 @@ function buildMovieFormData(values: LiveMovieFormValues, extra?: Record<string, 
 
 export class MovieWriteError extends Error {}
 
+function hasHttpResponse(error: unknown): boolean {
+  return Boolean((error as { response?: unknown }).response);
+}
+
 export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movie> {
+  let previousIds: Set<number> | null = null;
+  try {
+    previousIds = new Set((await fetchRawMovies()).map((movie) => movie.maPhim));
+  } catch {
+    // The write can still proceed; only post-error verification is unavailable.
+  }
+
   try {
     const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
       'QuanLyPhim/ThemPhimUploadHinh',
@@ -164,6 +180,22 @@ export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movi
     cacheMovies([movie]);
     return movie;
   } catch (error) {
+    // CyberSoft sometimes commits a multipart upload but closes the response
+    // without CORS headers. Confirm the side effect before showing a false error.
+    if (!hasHttpResponse(error) && previousIds) {
+      try {
+        const created = (await fetchRawMovies())
+          .filter((movie) => !previousIds.has(movie.maPhim) && movie.tenPhim.trim() === values.name.trim())
+          .sort((a, b) => b.maPhim - a.maPhim)[0];
+        if (created) {
+          const movie = mapCyberSoftMovie(created);
+          cacheMovies([movie]);
+          return movie;
+        }
+      } catch {
+        // Preserve the original write error when verification is unavailable.
+      }
+    }
     throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể thêm phim. Vui lòng thử lại.'));
   }
 }
@@ -180,6 +212,24 @@ export async function updateLiveMovie(id: number, values: LiveMovieFormValues): 
     cacheMovies([movie]);
     return movie;
   } catch (error) {
+    if (!hasHttpResponse(error)) {
+      try {
+        const saved = await fetchLiveMovieById(id);
+        if (
+          saved &&
+          saved.name.trim() === values.name.trim() &&
+          saved.description.trim() === values.description.trim() &&
+          saved.releaseDate.slice(0, 10) === values.releaseDate.slice(0, 10) &&
+          saved.isShowing === values.isShowing &&
+          saved.isUpcoming === values.isUpcoming &&
+          saved.isHot === values.isHot
+        ) {
+          return saved;
+        }
+      } catch {
+        // Preserve the original write error when verification is unavailable.
+      }
+    }
     throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể lưu phim. Vui lòng thử lại.'));
   }
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LogOut, Menu, Search, MapPin, Ticket, User as UserIcon, X } from 'lucide-react';
+import { LogOut, Menu, MapPin, Ticket, User as UserIcon, X } from 'lucide-react';
 import Logo from '@/components/common/Logo';
+import MovieSearchAutocomplete from '@/components/common/MovieSearchAutocomplete';
 import { useAuthStore } from '@/store/authStore';
 import { cities } from '@/mocks/cinemas';
 
@@ -41,8 +42,7 @@ export default function Header() {
 
   const transparent = isHome && !scrolled;
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSearch() {
     if (keyword.trim()) navigate(`/?q=${encodeURIComponent(keyword.trim())}`);
   }
 
@@ -55,7 +55,7 @@ export default function Header() {
       <div className="container-app flex items-center gap-4 py-3">
         <button
           type="button"
-          className="text-text-muted lg:hidden"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-text-muted hover:bg-white/5 lg:hidden"
           onClick={() => setDrawerOpen(true)}
           aria-label="Mở menu"
         >
@@ -69,6 +69,7 @@ export default function Header() {
             <Link
               key={item.to}
               to={item.to}
+              aria-current={location.pathname === item.to ? 'page' : undefined}
               className="rounded-md px-3 py-2 text-sm font-medium text-text-muted transition hover:bg-white/5 hover:text-text"
             >
               {item.label}
@@ -76,18 +77,11 @@ export default function Header() {
           ))}
         </nav>
 
-        <form
+        <MovieSearchAutocomplete
+          value={keyword}
+          onChange={setKeyword}
           onSubmit={handleSearch}
-          className="ml-auto hidden max-w-xs flex-1 items-center gap-2 rounded-full border border-border bg-surface-elevated/80 px-3 py-1.5 lg:flex"
-        >
-          <Search size={16} className="text-text-muted" />
-          <input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm phim, rạp..."
-            className="w-full bg-transparent text-sm outline-none placeholder:text-text-muted"
-          />
-        </form>
+        />
 
         <div className="hidden items-center gap-1 text-sm text-text-muted hover:text-text sm:flex">
           <MapPin size={16} aria-hidden="true" />
@@ -155,12 +149,12 @@ export default function Header() {
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm">
-            <Link to="/login" className="text-text-muted hover:text-text">
+            <Link to="/login" className="hidden min-h-11 items-center text-text-muted hover:text-text sm:flex">
               Đăng nhập
             </Link>
             <Link
               to="/register"
-              className="rounded-full bg-primary px-4 py-2 font-semibold text-white hover:bg-primary-hover"
+              className="flex min-h-11 items-center rounded-full bg-primary px-3 py-2 font-semibold text-white hover:bg-primary-hover sm:px-4"
             >
               Đăng ký
             </Link>
@@ -177,23 +171,27 @@ export default function Header() {
           >
             <div className="mb-4 flex items-center justify-between">
               <Logo />
-              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Đóng menu">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Đóng menu"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white/5"
+              >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSearch} className="relative mb-3">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-              <input
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Tìm phim..."
-                className="w-full rounded-full border border-border bg-surface-elevated py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
-              />
-            </form>
+            <MovieSearchAutocomplete
+              mobile
+              value={keyword}
+              onChange={setKeyword}
+              onSubmit={handleSearch}
+              onSelect={() => setDrawerOpen(false)}
+            />
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
+                aria-current={location.pathname === item.to ? 'page' : undefined}
                 onClick={() => setDrawerOpen(false)}
                 className="rounded-md px-3 py-3 text-sm font-medium text-text-muted hover:bg-white/5 hover:text-text"
               >

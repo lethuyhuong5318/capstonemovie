@@ -10,7 +10,7 @@ const PAGE_SIZE = 8;
 export default function UserListPage() {
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
@@ -25,7 +25,7 @@ export default function UserListPage() {
   }, [data, page]);
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteUser(id),
+    mutationFn: (id: string) => deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setDeleteTarget(null);
@@ -45,6 +45,8 @@ export default function UserListPage() {
       </div>
 
       <input
+        type="search"
+        aria-label="Tìm người dùng"
         value={keyword}
         onChange={(e) => {
           setKeyword(e.target.value);
@@ -53,6 +55,12 @@ export default function UserListPage() {
         placeholder="Tìm theo tên, tài khoản, email..."
         className="mb-4 w-full max-w-sm rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
       />
+
+      {deleteMutation.isError && (
+        <p role="alert" className="mb-4 rounded-md border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
+          {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Không thể xóa người dùng.'}
+        </p>
+      )}
 
       <div className="overflow-x-auto rounded border border-border bg-surface">
         <table className="w-full text-left text-sm">

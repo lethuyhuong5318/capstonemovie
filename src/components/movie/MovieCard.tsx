@@ -21,7 +21,7 @@ export default function MovieCard({ movie }: { movie: Movie }) {
             )}
           </div>
 
-          <div className="absolute inset-0 flex items-end justify-center gap-2 bg-black/60 p-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <div className="absolute inset-0 flex items-end justify-center gap-2 bg-black/60 p-3 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
             <span className="flex items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
               <Play size={13} /> Trailer
             </span>

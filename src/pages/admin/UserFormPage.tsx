@@ -16,19 +16,20 @@ const schema = z.object({
   username: z.string().min(3, 'Tài khoản tối thiểu 3 ký tự'),
   email: z.string().email('Email không hợp lệ'),
   phone: z.string().min(9, 'Số điện thoại không hợp lệ'),
+  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
   role: z.enum(['CUSTOMER', 'ADMIN']),
 });
 
 export default function UserFormPage() {
   const { id } = useParams();
-  const userId = id ? Number(id) : undefined;
+  const username = id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: existing } = useQuery({
-    queryKey: ['user', userId],
-    queryFn: () => fetchUserById(userId!),
-    enabled: !!userId,
+    queryKey: ['user', username],
+    queryFn: () => fetchUserById(username!),
+    enabled: !!username,
   });
 
   const {
@@ -38,7 +39,7 @@ export default function UserFormPage() {
     formState: { errors },
   } = useForm<UserFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: '', username: '', email: '', phone: '', role: 'CUSTOMER' },
+    defaultValues: { fullName: '', username: '', email: '', phone: '', password: '', role: 'CUSTOMER' },
   });
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export default function UserFormPage() {
 
   const mutation = useMutation({
     mutationFn: (values: UserFormValues) =>
-      userId ? updateUser(userId, values) : createUser(values),
+      username ? updateUser(username, values) : createUser(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       navigate('/admin/users');
@@ -59,7 +60,7 @@ export default function UserFormPage() {
   return (
     <div>
       <h1 className="mb-4 text-xl font-semibold">
-        {userId ? `Sửa người dùng #${userId}` : 'Thêm người dùng mới'}
+        {username ? `Sửa người dùng ${username}` : 'Thêm người dùng mới'}
       </h1>
 
       <form
@@ -70,7 +71,7 @@ export default function UserFormPage() {
           <input {...register('fullName')} className="input" />
         </FormField>
         <FormField label="Tài khoản" error={errors.username?.message}>
-          <input {...register('username')} className="input" disabled={!!userId} />
+          <input {...register('username')} className="input" disabled={!!username} autoComplete="username" />
         </FormField>
         <FormField label="Email" error={errors.email?.message}>
           <input type="email" {...register('email')} className="input" />
@@ -78,12 +79,26 @@ export default function UserFormPage() {
         <FormField label="Số điện thoại" error={errors.phone?.message}>
           <input type="tel" {...register('phone')} className="input" />
         </FormField>
+        <FormField label="Mật khẩu" error={errors.password?.message}>
+          <input
+            type="password"
+            {...register('password')}
+            className="input"
+            autoComplete={username ? 'current-password' : 'new-password'}
+          />
+        </FormField>
         <FormField label="Vai trò" error={errors.role?.message}>
           <select {...register('role')} className="input">
             <option value="CUSTOMER">Khách hàng</option>
             <option value="ADMIN">Quản trị</option>
           </select>
         </FormField>
+
+        {mutation.isError && (
+          <p role="alert" className="rounded-md border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
+            {mutation.error instanceof Error ? mutation.error.message : 'Không thể lưu người dùng.'}
+          </p>
+        )}
 
         <div className="flex gap-3">
           <button
