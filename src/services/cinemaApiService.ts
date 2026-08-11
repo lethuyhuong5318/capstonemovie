@@ -5,7 +5,7 @@ interface RawCumRap {
   maCumRap: string;
   tenCumRap: string;
   diaChi: string;
-  danhSachRap?: Array<{ maRap: string; tenRap: string }>;
+  danhSachRap?: Array<{ maRap: number | string; tenRap: string }>;
 }
 
 interface RawHeThongRap {
@@ -106,7 +106,7 @@ export async function fetchClustersBySystem(systemCode: string): Promise<CinemaC
     code: c.maCumRap,
     name: c.tenCumRap,
     address: c.diaChi,
-    rooms: (c.danhSachRap ?? []).map((room) => ({ id: room.maRap, name: room.tenRap })),
+    rooms: (c.danhSachRap ?? []).map((room) => ({ id: String(room.maRap), name: room.tenRap })),
   }));
 }
 

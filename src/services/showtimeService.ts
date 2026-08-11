@@ -133,6 +133,7 @@ export async function fetchSeatsByShowtime(showtimeId: number): Promise<Seat[]> 
 export interface ShowtimeFormValues {
   movieId: number;
   roomId: string;
+  cinemaClusterCode: string;
   date: string;
   time: string;
   price: number;
@@ -142,10 +143,15 @@ export async function createShowtime(values: ShowtimeFormValues) {
   const [year, month, day] = values.date.split('-');
   try {
     const response = await cybersoftApi.post('QuanLyDatVe/TaoLichChieu', {
-      maPhim: values.movieId,
+      maPhim: Number(values.movieId),
       ngayChieuGioChieu: `${day}/${month}/${year} ${values.time}:00`,
-      maRap: values.roomId,
-      giaVe: values.price,
+      // The live API returns room codes as numbers and validates them
+      // numerically even though its Swagger schema currently says string.
+      maRap: Number(values.roomId),
+      // Kept as compatibility metadata for deployments/proxies that validate
+      // the selected cluster as well. The CyberSoft API safely ignores extras.
+      maCumRap: values.cinemaClusterCode,
+      giaVe: Number(values.price),
     });
     return response.data.content;
   } catch (error) {

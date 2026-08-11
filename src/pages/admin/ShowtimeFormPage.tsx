@@ -49,14 +49,20 @@ export default function ShowtimeFormPage() {
   }, [cinemaClusters]);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createShowtime({
+    mutationFn: () => {
+      const validRoom = selectedCluster?.rooms?.some((room) => String(room.id) === roomId);
+      if (!clusterCode || !validRoom) {
+        throw new Error('Phòng chiếu đã chọn không thuộc cụm rạp hiện tại. Vui lòng chọn lại.');
+      }
+      return createShowtime({
         movieId,
         roomId,
+        cinemaClusterCode: clusterCode,
         date,
         time,
         price,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['showtimes', movieId] });
       setSuccessMsg('Tạo lịch chiếu thành công.');
@@ -158,7 +164,7 @@ export default function ShowtimeFormPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={mutation.isPending || !roomId}
+            disabled={mutation.isPending || !clusterCode || !roomId}
             className="rounded bg-primary px-5 py-2 text-sm font-medium hover:bg-primary-hover disabled:opacity-50"
           >
             {mutation.isPending ? 'Đang lưu...' : 'Tạo lịch chiếu'}
