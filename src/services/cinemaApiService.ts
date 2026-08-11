@@ -5,7 +5,7 @@ interface RawCumRap {
   maCumRap: string;
   tenCumRap: string;
   diaChi: string;
-  danhSachRap?: Array<{ maRap: number; tenRap: string }>;
+  danhSachRap?: Array<{ maRap: string; tenRap: string }>;
 }
 
 interface RawHeThongRap {
@@ -48,7 +48,7 @@ export interface CinemaCluster {
   code: string;
   name: string;
   address: string;
-  rooms?: Array<{ id: number; name: string }>;
+  rooms?: Array<{ id: string; name: string }>;
 }
 
 export interface ShowtimeEntry {

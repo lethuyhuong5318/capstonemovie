@@ -32,7 +32,7 @@ export default function ShowtimeFormPage() {
     () => cinemaClusters.find((cluster) => cluster.code === clusterCode),
     [cinemaClusters, clusterCode],
   );
-  const [roomId, setRoomId] = useState(0);
+  const [roomId, setRoomId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState('19:00');
   const [price, setPrice] = useState(75000);
@@ -45,7 +45,7 @@ export default function ShowtimeFormPage() {
   useEffect(() => {
     const firstCluster = cinemaClusters[0];
     setClusterCode(firstCluster?.code ?? '');
-    setRoomId(firstCluster?.rooms?.[0]?.id ?? 0);
+    setRoomId(firstCluster?.rooms?.[0]?.id ?? '');
   }, [cinemaClusters]);
 
   const mutation = useMutation({
@@ -83,7 +83,7 @@ export default function ShowtimeFormPage() {
             onChange={(e) => {
               setCinemaSystemCode(e.target.value);
               setClusterCode('');
-              setRoomId(0);
+              setRoomId('');
             }}
           >
             {cinemaSystems.map((s) => (
@@ -103,7 +103,7 @@ export default function ShowtimeFormPage() {
               const code = e.target.value;
               setClusterCode(code);
               const cluster = cinemaClusters.find((item) => item.code === code);
-              setRoomId(cluster?.rooms?.[0]?.id ?? 0);
+              setRoomId(cluster?.rooms?.[0]?.id ?? '');
             }}
           >
             {cinemaClusters.map((c) => (
@@ -116,7 +116,7 @@ export default function ShowtimeFormPage() {
 
         <div>
           <label className="mb-1 block text-sm text-text-muted">Phòng chiếu</label>
-          <select className="input" value={roomId} onChange={(e) => setRoomId(Number(e.target.value))}>
+          <select className="input" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
             {(selectedCluster?.rooms ?? []).map((room) => (
               <option key={room.id} value={room.id}>
                 {room.name}

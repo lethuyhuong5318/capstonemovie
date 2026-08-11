@@ -132,7 +132,7 @@ export async function fetchSeatsByShowtime(showtimeId: number): Promise<Seat[]> 
 
 export interface ShowtimeFormValues {
   movieId: number;
-  roomId: number;
+  roomId: string;
   date: string;
   time: string;
   price: number;
