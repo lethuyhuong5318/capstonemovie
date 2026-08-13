@@ -43,7 +43,11 @@ export default function RegisterPage() {
     register: registerField,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+  });
 
   const mutation = useMutation({
     mutationFn: registerApi,
