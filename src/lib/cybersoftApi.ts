@@ -1,20 +1,20 @@
 import axios from 'axios';
 
-/**
- * Public CyberSoft bootcamp training API — shared sandbox used to demo a real
- * (non-mock) HTTP data source for the movie catalog. Not a private secret:
- * this token is the standard publicly-distributed classroom token.
- */
+
+
+
+
+
 export const cybersoftApi = axios.create({
   baseURL: 'https://movienew.cybersoft.edu.vn/api/',
 });
 
-/**
- * Write endpoints (`CapNhatPhimUpload`, `XoaPhim`, ...) additionally require an
- * `Authorization: Bearer <accessToken>` from a real CyberSoft account with the
- * `QuanTri` role — `TokenCybersoft` alone only unlocks the read endpoints.
- * Without it those calls fail 401; with a non-admin account they fail 403.
- */
+
+
+
+
+
+
 const CYBERSOFT_TOKEN_KEY = 'cinewave-cybersoft-token';
 
 let cybersoftAccessToken: string | null =
@@ -42,7 +42,6 @@ cybersoftApi.interceptors.request.use((config) => {
   return config;
 });
 
-/** Turns an axios error from this API into the server's real message. */
 export function cybersoftErrorMessage(error: unknown, fallback: string): string {
   const res = (error as { response?: { status?: number; data?: { content?: unknown; message?: unknown } } })
     .response;

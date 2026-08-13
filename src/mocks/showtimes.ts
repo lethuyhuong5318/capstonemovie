@@ -49,7 +49,7 @@ for (const movie of movies.filter((m) => m.isShowing)) {
   generateShowtimesForMovie(movie.id);
 }
 
-/** Ensures a movie (including one loaded from a live API, not just the local mock catalog) has generated showtimes. */
+
 export function ensureShowtimesForMovie(movieId: number) {
   generateShowtimesForMovie(movieId);
 }

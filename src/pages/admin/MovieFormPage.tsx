@@ -130,9 +130,9 @@ export default function MovieFormPage() {
   }
 
   const onSubmit = (values: FormValues) => {
-    // Both CyberSoft upload endpoints require a multipart `File`. In particular,
-    // CapNhatPhimUpload may terminate without a useful response when it is omitted,
-    // which browsers surface as a misleading network/CORS error.
+
+
+
     if (!posterFile) {
       setPosterError(
         movieId

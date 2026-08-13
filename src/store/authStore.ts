@@ -28,8 +28,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      // The axios interceptor keeps the bearer token in a module-level variable,
-      // so it has to be re-seeded from persisted state on a fresh page load.
+
+
       onRehydrateStorage: () => (state) => {
         if (state?.accessToken) setCybersoftAccessToken(state.accessToken);
       },

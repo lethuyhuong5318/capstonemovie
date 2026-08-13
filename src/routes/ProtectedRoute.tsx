@@ -35,8 +35,8 @@ export default function ProtectedRoute({ requireAdmin }: Props) {
   }, [accountQuery.isError, logout]);
 
   if (!user || !accessToken || accountQuery.isError) {
-    // Remember where the visitor was headed so signing in resumes the booking
-    // flow instead of dropping them on the home page.
+
+
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

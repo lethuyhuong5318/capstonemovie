@@ -2,10 +2,9 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Film, Clapperboard, Ticket, Wallet } from 'lucide-react';
 import { fetchLiveMovies } from '@/services/movieApiService';
-import { showtimes } from '@/mocks/showtimes';
-import { movies as movieList } from '@/mocks/movies';
 import { formatCurrency } from '@/utils/format';
 import { fetchAdminBookings } from '@/services/adminBookingService';
+import { fetchFullSchedule } from '@/services/cinemaApiService';
 
 export default function DashboardPage() {
   const { data: movies } = useQuery({
@@ -17,9 +16,23 @@ export default function DashboardPage() {
     queryFn: fetchAdminBookings,
     staleTime: 0,
   });
+  const { data: schedules = [] } = useQuery({
+    queryKey: ['admin-full-schedule'],
+    queryFn: fetchFullSchedule,
+  });
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayShowtimes = showtimes.filter((s) => s.date === todayStr);
+  const liveShowtimes = useMemo(
+    () => schedules.flatMap((system) =>
+      system.clusters.flatMap((cluster) =>
+        cluster.movies.flatMap((movie) =>
+          movie.showtimes.map((showtime) => ({ ...showtime, movieName: movie.movieName })),
+        ),
+      ),
+    ),
+    [schedules],
+  );
+  const todayShowtimes = liveShowtimes.filter((showtime) => showtime.date === todayStr);
   const totalRevenue = bookings.reduce((sum, b) => sum + b.total, 0);
 
   const topMovies = useMemo(() => {
@@ -88,13 +101,12 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {showtimes
-              .filter((s) => `${s.date}T${s.time}` >= new Date().toISOString().slice(0, 16))
-              .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+            {liveShowtimes
+              .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
               .slice(0, 6)
               .map((s) => (
                 <tr key={s.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5">{movieList.find((m) => m.id === s.movieId)?.name}</td>
+                  <td className="px-4 py-2.5">{s.movieName}</td>
                   <td className="px-4 py-2.5 text-text-muted">{s.date}</td>
                   <td className="px-4 py-2.5 text-text-muted">{s.time}</td>
                 </tr>

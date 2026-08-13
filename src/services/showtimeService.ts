@@ -71,7 +71,7 @@ export interface CinemaScheduleMovie {
   showtimes: ShowtimeWithStatus[];
 }
 
-/** Schedule at a single cinema for one day, grouped by movie — seeds showtimes for the given movie ids first. */
+
 export async function fetchScheduleByCinema(
   cinemaId: number,
   date: string,

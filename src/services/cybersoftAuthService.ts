@@ -11,7 +11,7 @@ interface CyberSoftLoginContent {
 export interface CybersoftSession {
   account: string;
   fullName: string;
-  /** `QuanTri` = admin. Only this role may write to the movie catalog. */
+
   role: string;
   isAdmin: boolean;
 }
@@ -29,11 +29,11 @@ export function getCybersoftSession(): CybersoftSession | null {
   }
 }
 
-/**
- * Signs in against the real CyberSoft API to obtain the Bearer token that the
- * catalog write endpoints require. This is separate from the app's own (mock)
- * admin login, which never leaves the browser.
- */
+
+
+
+
+
 export async function loginCybersoft(taiKhoan: string, matKhau: string): Promise<CybersoftSession> {
   const res = await cybersoftApi.post<{ content: CyberSoftLoginContent }>(
     'QuanLyNguoiDung/DangNhap',

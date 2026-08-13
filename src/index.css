@@ -15,7 +15,7 @@
   --color-warning: #f59e0b;
   --color-error: #ef4444;
 
-  /* Admin area: lifted a step from customer surfaces for data legibility */
+
   --color-admin-bg: #10131b;
   --color-admin-surface: #181d27;
   --color-admin-surface-alt: #212734;
@@ -98,7 +98,7 @@ button:disabled,
   box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.35);
 }
 
-/* Visible keyboard-focus ring on every interactive element (a11y: focus-states) */
+
 a:focus-visible,
 button:focus-visible,
 select:focus-visible,
@@ -126,8 +126,8 @@ select:focus-visible,
   scrollbar-width: none;
 }
 
-/* Subtle perspective reveal shared by customer pages. Content stays visible
-   without JavaScript; the class is only attached after the observer starts. */
+
+
 .scroll-reveal {
   opacity: 0;
   transform: perspective(1100px) translate3d(0, 24px, -28px) rotateX(3deg);
@@ -198,5 +198,21 @@ select:focus-visible,
   }
   to {
     transform: translateX(0);
+  }
+}
+
+@keyframes cw-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-content {
+  animation: cw-marquee 18s linear infinite;
+}
+.marquee-track:hover .marquee-content {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-content {
+    animation: none;
   }
 }

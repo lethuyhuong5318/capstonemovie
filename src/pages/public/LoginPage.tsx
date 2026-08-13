@@ -19,7 +19,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const setAuth = useAuthStore((s) => s.setAuth);
-  // Set by ProtectedRoute when it intercepts a visit to a page that needs auth.
+
   const redirectTo = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
 
   const {
@@ -32,7 +32,7 @@ export default function LoginPage() {
     mutationFn: login,
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken, data.refreshToken);
-      // Resume the interrupted flow (e.g. the showtime they were booking).
+
       if (redirectTo) navigate(redirectTo, { replace: true });
       else navigate(data.user.role === 'ADMIN' ? '/admin' : '/', { replace: true });
     },

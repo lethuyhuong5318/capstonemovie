@@ -20,3 +20,13 @@ export function formatShortDate(dateStr: string) {
 export function formatFullDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 }
+
+
+
+
+
+export function formatRating(rating: number) {
+  const rounded = Math.round(rating * 10) / 10;
+  const label = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `${label}/10`;
+}

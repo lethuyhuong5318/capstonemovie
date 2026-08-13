@@ -25,11 +25,11 @@ interface RawThongTinPhim {
 export interface TicketSeat {
   id: number;
   code: string;
-  /** `VIP` seats cost more; the API already returns the correct `price`. */
+
   type: 'STANDARD' | 'VIP';
   price: number;
   booked: boolean;
-  /** True when the currently signed-in account owns this booked seat. */
+
   bookedByMe: boolean;
 }
 
@@ -81,7 +81,7 @@ export interface BookTicketPayload {
   seats: Array<{ id: number; price: number }>;
 }
 
-/** Requires a signed-in CyberSoft account (Bearer token) — verified against the live API. */
+
 export async function bookTickets(payload: BookTicketPayload): Promise<void> {
   try {
     await cybersoftApi.post('QuanLyDatVe/DatVe', {
@@ -98,7 +98,7 @@ export async function bookTickets(payload: BookTicketPayload): Promise<void> {
   }
 }
 
-/** ---- Booking history (ThongTinTaiKhoan) ---- */
+
 interface RawVeDaDat {
   maVe: number;
   tenPhim: string;
@@ -135,8 +135,8 @@ export async function fetchMyTickets(): Promise<BookedTicket[]> {
     bookedAt: v.ngayDat,
     durationMinutes: v.thoiLuongPhim,
     price: v.giaVe,
-    // The API's naming is shifted here: `tenHeThongRap` actually carries the
-    // cluster name ("MegaGS - Cao Thắng") while `tenCumRap` carries the room.
+
+
     cinemaName: v.danhSachGhe[0]?.tenHeThongRap ?? '',
     roomName: v.danhSachGhe[0]?.tenRap ?? '',
     seatCodes: v.danhSachGhe.map((g) => g.tenGhe),

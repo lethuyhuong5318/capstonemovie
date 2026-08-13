@@ -7,10 +7,11 @@ import { fetchShowtimesForMovie } from '@/services/cinemaApiService';
 import TrailerModal from '@/components/movie/TrailerModal';
 import ShowtimeSelector from '@/components/cinema/ShowtimeSelector';
 import DateSelector from '@/components/cinema/DateSelector';
+import LoginMarquee from '@/components/common/LoginMarquee';
 import AgeBadge from '@/components/movie/AgeBadge';
 import ReviewSection from '@/components/movie/ReviewSection';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
-import { formatDuration, formatFullDate } from '@/utils/format';
+import { formatDuration, formatFullDate, formatRating } from '@/utils/format';
 
 export default function MovieDetailPage() {
   const { movieId } = useParams();
@@ -93,7 +94,7 @@ export default function MovieDetailPage() {
               <span>·</span>
               <span>Khởi chiếu {formatFullDate(movie.releaseDate)}</span>
               <span className="flex items-center gap-1 text-accent">
-                <Star size={14} fill="currentColor" /> {movie.rating.toFixed(1)}
+                <Star size={14} fill="currentColor" /> {formatRating(movie.rating)}
               </span>
             </div>
 
@@ -131,6 +132,8 @@ export default function MovieDetailPage() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Lịch chiếu</h2>
             </div>
+
+            <LoginMarquee />
 
             {showtimesLoading ? (
               <p className="text-text-muted">Đang tải lịch chiếu...</p>

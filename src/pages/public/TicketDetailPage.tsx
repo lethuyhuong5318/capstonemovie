@@ -72,7 +72,6 @@ export default function TicketDetailPage() {
       try {
         await navigator.share({ title: 'Vé CineWave', text: shareText, url: window.location.href });
       } catch {
-        // người dùng hủy chia sẻ
       }
     } else {
       await navigator.clipboard.writeText(`${shareText} — ${window.location.href}`);

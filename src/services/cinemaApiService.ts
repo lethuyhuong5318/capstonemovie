@@ -1,6 +1,6 @@
 import { cybersoftApi, CYBERSOFT_MA_NHOM } from '@/lib/cybersoftApi';
 
-/** ---- Raw API shapes (QuanLyRap) ---- */
+
 interface RawCumRap {
   maCumRap: string;
   tenCumRap: string;
@@ -37,7 +37,7 @@ interface RawHeThongRapChieu {
   cumRapChieu: RawCumRapChieu[];
 }
 
-/** ---- App-facing models ---- */
+
 export interface CinemaSystemBrand {
   code: string;
   name: string;
@@ -53,7 +53,7 @@ export interface CinemaCluster {
 
 export interface ShowtimeEntry {
   id: number;
-  /** Full ISO timestamp from the API, e.g. `2025-09-04T16:30:00`. */
+
   startsAt: string;
   date: string;
   time: string;
@@ -110,7 +110,7 @@ export async function fetchClustersBySystem(systemCode: string): Promise<CinemaC
   }));
 }
 
-/** Showtimes for one movie, grouped brand → cluster → showtime. */
+
 export async function fetchShowtimesForMovie(movieId: number): Promise<SystemShowtimes[]> {
   const res = await cybersoftApi.get<{ content: { heThongRapChieu?: RawHeThongRapChieu[] } }>(
     'QuanLyRap/LayThongTinLichChieuPhim',
@@ -132,7 +132,7 @@ export async function fetchShowtimesForMovie(movieId: number): Promise<SystemSho
   }));
 }
 
-/** Whole-system schedule (all movies), used by the cinema browse page. */
+
 export interface ClusterMovieSchedule {
   movieId: number;
   movieName: string;

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Clock, Play, Star, Ticket } from 'lucide-react';
 import type { Movie } from '@/types';
-import { formatDuration } from '@/utils/format';
+import { formatDuration, formatRating } from '@/utils/format';
 import AgeBadge from '@/components/movie/AgeBadge';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
 
@@ -35,7 +35,7 @@ export default function MovieCard({ movie }: { movie: Movie }) {
         <p className="mt-0.5 line-clamp-1 text-xs text-text-muted">{movie.genres.join(', ')}</p>
         <div className="mt-1.5 flex items-center gap-3 text-xs text-text-muted">
           <span className="flex items-center gap-1 text-accent">
-            <Star size={12} fill="currentColor" /> {movie.rating.toFixed(1)}
+            <Star size={12} fill="currentColor" /> {formatRating(movie.rating)}
           </span>
           <span className="flex items-center gap-1">
             <Clock size={12} /> {formatDuration(movie.durationMinutes)}

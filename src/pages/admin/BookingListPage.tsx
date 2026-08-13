@@ -3,7 +3,7 @@ import { fetchAdminBookings } from '@/services/adminBookingService';
 import { formatCurrency } from '@/utils/format';
 
 export default function BookingListPage() {
-  const { data: rows = [] } = useQuery({
+  const { data: rows = [], isLoading, isError } = useQuery({
     queryKey: ['admin-bookings'],
     queryFn: fetchAdminBookings,
     staleTime: 0,
@@ -13,6 +13,7 @@ export default function BookingListPage() {
     <div>
       <h1 className="mb-4 text-xl font-semibold">Quản lý đơn đặt vé</h1>
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+        {isError && <p className="px-4 py-3 text-sm text-error">Không thể tải dữ liệu vé từ máy chủ.</p>}
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-text-muted">
             <tr>
@@ -39,7 +40,10 @@ export default function BookingListPage() {
                 </tr>
               );
             })}
-            {rows.length === 0 && (
+            {isLoading && (
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-text-muted">Đang tải danh sách vé...</td></tr>
+            )}
+            {!isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-text-muted">
                   Chưa có đơn đặt vé nào.

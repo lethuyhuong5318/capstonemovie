@@ -58,8 +58,8 @@ export interface LiveMovieFilter {
   status?: 'showing' | 'upcoming' | 'all';
 }
 
-/** Small in-memory cache so other mock services (showtimes/bookings) can resolve
- * a movie's name/poster even though it was never loaded into mocks/movies.ts. */
+
+
 const liveMovieCache = new Map<number, Movie>();
 
 function cacheMovies(list: Movie[]) {
@@ -71,11 +71,11 @@ export function getCachedLiveMovie(id: number): Movie | undefined {
   return liveMovieCache.get(id);
 }
 
-/**
- * Guards against throwaway entries other students leave behind on the shared
- * sandbox (names like `test1`, `Movie 1786111781058`, `edit 1`). The group's own
- * catalog is clean today, so this normally filters nothing.
- */
+
+
+
+
+
 const JUNK_NAME_PATTERN = /\btest\d*\b|\d{9,}|^[a-z]{5,}$|^edit\b/i;
 
 function isJunkMovie(movie: Movie): boolean {
@@ -168,7 +168,6 @@ export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movi
   try {
     previousIds = new Set((await fetchRawMovies()).map((movie) => movie.maPhim));
   } catch {
-    // The write can still proceed; only post-error verification is unavailable.
   }
 
   try {
@@ -180,8 +179,6 @@ export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movi
     cacheMovies([movie]);
     return movie;
   } catch (error) {
-    // CyberSoft sometimes commits a multipart upload but closes the response
-    // without CORS headers. Confirm the side effect before showing a false error.
     if (!hasHttpResponse(error) && previousIds) {
       try {
         const created = (await fetchRawMovies())
@@ -193,7 +190,6 @@ export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movi
           return movie;
         }
       } catch {
-        // Preserve the original write error when verification is unavailable.
       }
     }
     throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể thêm phim. Vui lòng thử lại.'));
@@ -202,8 +198,6 @@ export async function createLiveMovie(values: LiveMovieFormValues): Promise<Movi
 
 export async function updateLiveMovie(id: number, values: LiveMovieFormValues): Promise<Movie> {
   try {
-    // `maPhim` and `File` are both required by CapNhatPhimUpload. MovieFormPage
-    // validates the file before this request so the API does not fail opaquely.
     const res = await cybersoftApi.post<{ content: CyberSoftMovie }>(
       'QuanLyPhim/CapNhatPhimUpload',
       buildMovieFormData(values, { maPhim: String(id) }),
@@ -227,7 +221,6 @@ export async function updateLiveMovie(id: number, values: LiveMovieFormValues): 
           return saved;
         }
       } catch {
-        // Preserve the original write error when verification is unavailable.
       }
     }
     throw new MovieWriteError(cybersoftErrorMessage(error, 'Không thể lưu phim. Vui lòng thử lại.'));

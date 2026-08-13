@@ -6,6 +6,7 @@ import { fetchFullSchedule } from '@/services/cinemaApiService';
 import DateSelector from '@/components/cinema/DateSelector';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
 import EmptyState from '@/components/common/EmptyState';
+import LoginMarquee from '@/components/common/LoginMarquee';
 
 export default function CinemaListPage() {
   const navigate = useNavigate();
@@ -22,8 +23,8 @@ export default function CinemaListPage() {
   const activeCluster =
     activeSystem?.clusters.find((c) => c.code === clusterCode) ?? activeSystem?.clusters[0];
 
-  // Reset the cluster whenever the brand changes so a stale cluster from the
-  // previous brand can never stay selected.
+
+
   useEffect(() => {
     setClusterCode(null);
     setDate(null);
@@ -111,6 +112,8 @@ export default function CinemaListPage() {
         </div>
 
         <div>
+          <LoginMarquee />
+
           {dates.length > 0 && activeDate && (
             <DateSelector dates={dates} activeDate={activeDate} onSelect={setDate} />
           )}

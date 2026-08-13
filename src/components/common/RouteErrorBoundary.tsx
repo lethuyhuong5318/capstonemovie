@@ -17,8 +17,8 @@ export default function RouteErrorBoundary() {
 
   useEffect(() => {
     if (!chunkLoadError) return;
-    // App was updated (new deploy / dev rebuild) while this tab had an old chunk map open.
-    // Reload once automatically to pick up the fresh build instead of showing a dead page.
+
+
     if (sessionStorage.getItem(RELOAD_FLAG)) return;
     sessionStorage.setItem(RELOAD_FLAG, '1');
     window.location.reload();

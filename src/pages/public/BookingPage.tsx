@@ -39,8 +39,8 @@ export default function BookingPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
-  // `room.time` from the API is unreliable (see ShowtimeSelector), so prefer the
-  // start time handed over by the listing when we have it.
+
+
   const startsAt = (location.state as { startsAt?: string } | null)?.startsAt;
   const showTime = startsAt ? startsAt.split('T')[1]?.slice(0, 5) : undefined;
 
@@ -103,7 +103,6 @@ export default function BookingPage() {
     onError: (error) => {
       setStep('payment');
       if (error instanceof SeatConflictError) {
-        // Someone else took the seat mid-flow — pull a fresh map and drop the stale picks.
         setSelected([]);
         queryClient.invalidateQueries({ queryKey: ['ticket-room', id] });
       }

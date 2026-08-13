@@ -10,6 +10,7 @@ import PosterPlaceholder from '@/components/common/PosterPlaceholder';
 import { MovieCardSkeleton } from '@/components/common/Skeleton';
 import EmptyState from '@/components/common/EmptyState';
 import AgeBadge from '@/components/movie/AgeBadge';
+import { formatRating } from '@/utils/format';
 
 type Tab = 'showing' | 'upcoming';
 
@@ -66,7 +67,7 @@ export default function HomePage() {
     enabled: !!quickMovie,
   });
 
-  /** Clusters that actually screen the chosen movie. */
+
   const quickClusters = useMemo(() => {
     const list: Array<{ code: string; name: string }> = [];
     for (const s of quickShowtimes ?? []) {
@@ -127,7 +128,7 @@ export default function HomePage() {
                   <Clock size={14} /> {banner.durationMinutes} phút
                 </span>
                 <span className="flex items-center gap-1 text-accent">
-                  <Star size={14} fill="currentColor" aria-hidden="true" /> {banner.rating.toFixed(1)}
+                  <Star size={14} fill="currentColor" aria-hidden="true" /> {formatRating(banner.rating)}
                 </span>
               </div>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-text-muted line-clamp-2 sm:text-base">

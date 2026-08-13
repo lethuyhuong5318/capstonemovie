@@ -13,8 +13,6 @@ function nextTransactionCode() {
 export async function processPayment(_method: PaymentMethod): Promise<PaymentResult> {
   await delay(null, 900);
   return {
-    // Demo gateway: confirmation is deterministic. A production payment must
-    // only become PAID after a signed webhook from the payment provider.
     status: 'PAID',
     transactionCode: nextTransactionCode(),
   };

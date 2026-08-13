@@ -28,11 +28,11 @@ export class InvalidCredentialsError extends Error {}
 export class AccountLockedError extends Error {}
 export class UsernameTakenError extends Error {}
 
-/**
- * The API has no numeric user id — `taiKhoan` is the primary key. Local features
- * that key off `User.id` (reviews, bookings) need a stable number, so we derive
- * one deterministically from the account name.
- */
+
+
+
+
+
 function idFromAccount(taiKhoan: string): number {
   let hash = 0;
   for (let i = 0; i < taiKhoan.length; i++) {
@@ -61,7 +61,7 @@ export async function login(payload: LoginPayload): Promise<AuthTokens & { user:
     );
     const content = res.data.content;
     const accessToken = content.accessToken ?? '';
-    // Every authenticated call (booking, admin writes) reads this token.
+
     setCybersoftAccessToken(accessToken);
     return { user: toUser(content), accessToken, refreshToken: accessToken };
   } catch (error) {
@@ -90,7 +90,7 @@ export async function register(payload: RegisterPayload): Promise<AuthTokens & {
     }
     throw new Error(message);
   }
-  // Registration does not return a token — sign in to obtain one.
+
   return login({ username: payload.username, password: payload.password });
 }
 
@@ -106,10 +106,10 @@ export function clearAuthToken() {
   setCybersoftAccessToken(null);
 }
 
-/**
- * The CyberSoft API exposes no password-reset endpoint, so this cannot be
- * fulfilled client-side. Surfaced as a clear message rather than a fake success.
- */
+
+
+
+
 export async function requestPasswordReset(_email: string): Promise<never> {
   throw new Error(
     'Hệ thống hiện chưa hỗ trợ đặt lại mật khẩu tự động. Vui lòng liên hệ quản trị viên để được cấp lại mật khẩu.',

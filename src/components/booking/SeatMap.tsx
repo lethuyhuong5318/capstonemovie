@@ -10,7 +10,7 @@ interface Props {
   onToggle: (seat: TicketSeat) => void;
 }
 
-/** The API returns a flat, sequentially numbered list — lay it out as rows of 10. */
+
 function groupByRow(seats: TicketSeat[]) {
   const rows = new Map<string, TicketSeat[]>();
   seats.forEach((seat, index) => {

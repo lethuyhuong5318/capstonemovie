@@ -10,9 +10,9 @@ interface Props {
 export default function ShowtimeSelector({ systems, selectedDate }: Props) {
   const navigate = useNavigate();
 
-  // The training dataset is historical — every showtime may already be in the
-  // past. Only grey out past times when the schedule actually has upcoming ones,
-  // otherwise the whole page would be unusable.
+
+
+
   const now = Date.now();
   const hasUpcoming = systems.some((s) =>
     s.clusters.some((c) => c.showtimes.some((st) => new Date(st.startsAt).getTime() >= now)),
@@ -41,10 +41,10 @@ export default function ShowtimeSelector({ systems, selectedDate }: Props) {
   }
 
   function handleClick(showtime: ShowtimeEntry) {
-    // Past showtimes are still returned by the API — block booking them.
+
     if (isExpired(showtime.startsAt)) return;
-    // `LayDanhSachPhongVe.gioChieu` is wrong upstream (it echoes the date parts),
-    // so carry the correct start time from this listing into the booking page.
+
+
     navigate(`/booking/${showtime.id}`, { state: { startsAt: showtime.startsAt } });
   }
 
