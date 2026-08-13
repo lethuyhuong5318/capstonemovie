@@ -10,7 +10,6 @@ const navItems = [
   { to: '/', label: 'Phim' },
   { to: '/cinemas', label: 'Rạp chiếu' },
   { to: '/schedule', label: 'Lịch chiếu' },
-  { to: '/promotions', label: 'Khuyến mãi' },
 ];
 
 export default function Header() {

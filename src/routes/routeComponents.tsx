@@ -8,7 +8,6 @@ export const RegisterPage = lazyRoute(() => import('@/pages/public/RegisterPage'
 export const ForgotPasswordPage = lazyRoute(() => import('@/pages/public/ForgotPasswordPage'));
 export const CinemaListPage = lazyRoute(() => import('@/pages/public/CinemaListPage'));
 export const SchedulePage = lazyRoute(() => import('@/pages/public/SchedulePage'));
-export const PromotionsPage = lazyRoute(() => import('@/pages/public/PromotionsPage'));
 export const NotFoundPage = lazyRoute(() => import('@/pages/public/NotFoundPage'));
 export const DashboardPage = lazyRoute(() => import('@/pages/admin/DashboardPage'));
 export const MovieListPage = lazyRoute(() => import('@/pages/admin/MovieListPage'));

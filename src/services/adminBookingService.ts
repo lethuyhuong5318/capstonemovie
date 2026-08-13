@@ -92,6 +92,15 @@ function mapAccountBookings(account: RawAccount): AdminBookingRecord[] {
   });
 }
 
+async function fetchAccount(username: string) {
+  const response = await cybersoftApi.post<{ content: RawAccount }>(
+    'QuanLyNguoiDung/LayThongTinNguoiDung',
+    null,
+    { params: { taiKhoan: username } },
+  );
+  return response.data.content;
+}
+
 export async function fetchAdminBookings(): Promise<AdminBookingRecord[]> {
   const stored = getStoredBookings();
   try {
@@ -99,22 +108,28 @@ export async function fetchAdminBookings(): Promise<AdminBookingRecord[]> {
       'QuanLyNguoiDung/LayDanhSachNguoiDung',
       { params: { MaNhom: CYBERSOFT_MA_NHOM } },
     );
-    const users = userResponse.data.content ?? [];
+    const storedUsers: RawUser[] = stored.map((booking) => ({
+      taiKhoan: booking.customerUsername,
+      hoTen: booking.customerName,
+      email: '',
+    }));
+    const userMap = new Map(
+      [...(userResponse.data.content ?? []), ...storedUsers]
+        .filter((user) => user.taiKhoan && user.taiKhoan !== 'guest')
+        .map((user) => [user.taiKhoan, user]),
+    );
+    const users = Array.from(userMap.values());
     const accounts: RawAccount[] = [];
     for (let index = 0; index < users.length; index += 6) {
       const batch = users.slice(index, index + 6);
       const results = await Promise.allSettled(
-        batch.map((user) =>
-          cybersoftApi.post<{ content: RawAccount }>(
-            'QuanLyNguoiDung/LayThongTinNguoiDung',
-            null,
-            { params: { taiKhoan: user.taiKhoan } },
-          ),
-        ),
+        batch.map((user) => fetchAccount(user.taiKhoan)),
       );
-      results.forEach((result) => {
-        if (result.status === 'fulfilled' && result.value.data.content) {
-          accounts.push(result.value.data.content);
+      results.forEach((result, resultIndex) => {
+        if (result.status === 'fulfilled' && result.value) {
+          accounts.push(result.value);
+        } else if (storedUsers.some((user) => user.taiKhoan === batch[resultIndex].taiKhoan)) {
+          throw result.status === 'rejected' ? result.reason : new Error('Không thể tải lịch sử đặt vé.');
         }
       });
     }

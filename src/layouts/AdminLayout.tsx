@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  Bell,
   ChevronRight,
   Clapperboard,
   Film,
@@ -125,10 +124,6 @@ export default function AdminLayout() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button type="button" className="relative rounded-full p-2 hover:bg-white/5" aria-label="Thông báo">
-              <Bell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
-            </button>
             <div className="flex items-center gap-2 rounded-full border border-admin-border bg-admin-surface-alt py-1 pl-1 pr-3">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                 {user?.fullName.slice(0, 1).toUpperCase()}
