@@ -1,183 +1,116 @@
-import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Popcorn, Printer, Share2 } from 'lucide-react';
-import { fetchBookingById } from '@/services/bookingService';
-import { paymentMethodLabel } from '@/services/paymentService';
-import { formatCurrency, formatFullDate } from '@/utils/format';
-import type { FnbStatus } from '@/types';
-
-const statusLabel: Record<string, string> = {
-  UPCOMING: 'Sắp xem',
-  WATCHED: 'Đã xem',
-  CANCELLED: 'Đã hủy',
-};
-
-const fnbStatusStyle: Record<FnbStatus, string> = {
-  NOT_REDEEMED: 'bg-warning/20 text-warning',
-  REDEEMED: 'bg-success/20 text-success',
-  CANCELLED: 'bg-error/20 text-error',
-};
-
-const fnbStatusLabel: Record<FnbStatus, string> = {
-  NOT_REDEEMED: 'Chưa nhận',
-  REDEEMED: 'Đã nhận',
-  CANCELLED: 'Đã hủy',
-};
+import { Download, Printer, Share2 } from 'lucide-react';
+import QRCode from 'qrcode';
+import { fetchMyTickets } from '@/services/ticketApiService';
+import { formatCurrency } from '@/utils/format';
 
 export default function TicketDetailPage() {
   const { bookingId } = useParams();
   const id = Number(bookingId);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  const { data: booking, isLoading } = useQuery({
-    queryKey: ['booking', id],
-    queryFn: () => fetchBookingById(id),
-    enabled: Number.isFinite(id),
+  const { data: tickets = [], isLoading, isError } = useQuery({
+    queryKey: ['my-tickets'],
+    queryFn: fetchMyTickets,
+  });
+  const ticket = tickets.find((item) => item.id === id);
+  const qrPayload = ticket
+    ? JSON.stringify({ ticketId: ticket.id, movie: ticket.movieName, seats: ticket.seatCodes })
+    : '';
+  const { data: qrCode } = useQuery({
+    queryKey: ['ticket-qr', ticket?.id],
+    queryFn: () => QRCode.toDataURL(qrPayload, { width: 224, margin: 2, errorCorrectionLevel: 'M' }),
+    enabled: !!ticket,
+    staleTime: Infinity,
   });
 
-  if (isLoading) return <div className="container-app py-8 text-text-muted">Đang tải...</div>;
-  if (!booking) return <div className="container-app py-8">Không tìm thấy vé.</div>;
+  if (isLoading) return <div className="container-app py-8 text-text-muted">Đang tải vé...</div>;
+  if (isError) return <div className="container-app py-8 text-error">Không tải được thông tin vé.</div>;
+  if (!Number.isFinite(id) || !ticket) {
+    return (
+      <div className="container-app py-8">
+        <p>Không tìm thấy vé trong tài khoản của bạn.</p>
+        <Link to="/profile" className="mt-3 inline-block text-sm text-primary hover:underline">Về vé của tôi</Link>
+      </div>
+    );
+  }
+
+  const bookedAt = new Date(ticket.bookedAt);
+  const bookedAtLabel = Number.isNaN(bookedAt.getTime())
+    ? ticket.bookedAt
+    : bookedAt.toLocaleString('vi-VN');
+
+  function ticketText() {
+    return [
+      'CineWave — Vé điện tử',
+      `Mã vé: ${ticket!.id}`,
+      `Phim: ${ticket!.movieName}`,
+      `Rạp: ${ticket!.cinemaName} — ${ticket!.roomName}`,
+      `Ghế: ${ticket!.seatCodes.join(', ')}`,
+      `Đặt lúc: ${bookedAtLabel}`,
+      `Tổng tiền: ${formatCurrency(ticket!.total)}`,
+    ].join('\n');
+  }
 
   function handleDownload() {
-    if (!booking) return;
-    const lines = [
-      `CineWave — Vé điện tử`,
-      `Mã đặt vé: ${booking.code}`,
-      `Phim: ${booking.movieName}`,
-      `Rạp: ${booking.cinemaSystemName} — ${booking.cinemaName}`,
-      booking.showtime ? `Ngày giờ: ${formatFullDate(booking.showtime.date)} · ${booking.showtime.time}` : '',
-      `Ghế: ${booking.seatCodes.join(', ')}`,
-      `Thanh toán: ${paymentMethodLabel[booking.paymentMethod]} (${booking.transactionCode})`,
-      ...(booking.combos.length
-        ? ['Bắp nước:', ...booking.combos.map((c) => `  - ${c.name} x${c.quantity}`)]
-        : []),
-      booking.fnbCode ? `Mã nhận combo: ${booking.fnbCode}` : '',
-      `Tổng tiền: ${formatCurrency(booking.total)}`,
-    ].filter(Boolean);
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([ticketText()], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ve-${booking.code}.txt`;
-    a.click();
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `ve-${ticket!.id}.txt`;
+    anchor.click();
     URL.revokeObjectURL(url);
   }
 
   async function handleShare() {
-    if (!booking) return;
-    const shareText = `Vé xem phim ${booking.movieName} — mã ${booking.code}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Vé CineWave', text: shareText, url: window.location.href });
+        await navigator.share({ title: `Vé ${ticket!.movieName}`, text: ticketText() });
       } catch {
       }
-    } else {
-      await navigator.clipboard.writeText(`${shareText} — ${window.location.href}`);
-      setFeedback('Đã sao chép thông tin vé vào bộ nhớ tạm.');
-      setTimeout(() => setFeedback(null), 3000);
+      return;
     }
+    await navigator.clipboard.writeText(ticketText());
   }
 
   return (
     <div className="container-app max-w-lg py-8">
-      <Link to="/profile" className="text-sm text-text-muted hover:text-text">
-        ← Quay lại vé của tôi
-      </Link>
-
+      <Link to="/profile" className="text-sm text-text-muted hover:text-text">← Quay lại vé của tôi</Link>
       <div className="mt-4 overflow-hidden rounded-lg border border-border bg-surface">
-        <div className="bg-primary p-4 text-center">
-          <p className="text-xs uppercase tracking-wide text-white/80">Mã đặt vé</p>
-          <p className="text-2xl font-bold">{booking.code}</p>
+        <div className="bg-primary p-4 text-center text-white">
+          <p className="text-xs uppercase tracking-wide text-white/80">Mã vé</p>
+          <p className="text-2xl font-bold">{ticket.id}</p>
         </div>
-
-        <div className="flex flex-col items-center gap-3 border-b border-dashed border-border p-6">
-          <QrPlaceholder />
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${
-              booking.status === 'UPCOMING'
-                ? 'bg-primary/20 text-primary'
-                : booking.status === 'WATCHED'
-                  ? 'bg-success/20 text-success'
-                  : 'bg-error/20 text-error'
-            }`}
-          >
-            {statusLabel[booking.status]}
-          </span>
+        <div className="flex flex-col items-center gap-2 border-b border-dashed border-border p-6">
+          {qrCode ? (
+            <img src={qrCode} alt={`Mã QR vé ${ticket.id}`} className="h-48 w-48 rounded-lg bg-white p-2" />
+          ) : (
+            <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-white text-xs text-bg">
+              Đang tạo mã QR...
+            </div>
+          )}
+          <p className="text-xs text-text-muted">Xuất trình mã này tại quầy soát vé</p>
         </div>
-
-        <div className="flex flex-col gap-2 p-6 text-sm">
-          <Row label="Phim" value={booking.movieName} />
-          <Row label="Rạp" value={`${booking.cinemaSystemName} — ${booking.cinemaName}`} />
-          <Row
-            label="Ngày giờ"
-            value={booking.showtime ? `${formatFullDate(booking.showtime.date)} · ${booking.showtime.time}` : ''}
-          />
-          <Row label="Ghế" value={booking.seatCodes.join(', ')} />
-          <Row label="Thanh toán" value={`${paymentMethodLabel[booking.paymentMethod]} · Đã thanh toán`} />
-          <Row label="Mã giao dịch" value={booking.transactionCode} />
-          <Row label="Tổng tiền" value={formatCurrency(booking.total)} strong />
+        <div className="flex flex-col gap-3 p-6 text-sm">
+          <Row label="Phim" value={ticket.movieName} />
+          <Row label="Rạp" value={`${ticket.cinemaName} — ${ticket.roomName}`} />
+          <Row label="Ghế" value={ticket.seatCodes.join(', ')} />
+          <Row label="Đặt lúc" value={bookedAtLabel} />
+          <Row label="Thời lượng" value={`${ticket.durationMinutes} phút`} />
+          <Row label="Tổng tiền" value={formatCurrency(ticket.total)} strong />
         </div>
-
-        {booking.combos.length > 0 && (
-          <div className="border-t border-border p-6">
-            <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-text-muted">
-              <Popcorn size={14} /> Bắp nước & combo
-            </p>
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {booking.combos.map((c) => (
-                <li key={c.comboId} className="flex justify-between">
-                  <span>
-                    {c.name} <span className="text-text-muted">x{c.quantity}</span>
-                  </span>
-                  <span>{formatCurrency(c.unitPrice * c.quantity)}</span>
-                </li>
-              ))}
-            </ul>
-
-            {booking.fnbCode && (
-              <div className="mt-4 flex items-center justify-between rounded-md border border-border bg-surface-elevated px-3 py-2.5">
-                <div>
-                  <p className="text-xs text-text-muted">Mã nhận combo</p>
-                  <p className="font-mono text-sm font-semibold">{booking.fnbCode}</p>
-                </div>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${fnbStatusStyle[booking.fnbStatus ?? 'NOT_REDEEMED']}`}
-                >
-                  {fnbStatusLabel[booking.fnbStatus ?? 'NOT_REDEEMED']}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="flex gap-2 border-t border-border p-4">
           <ActionButton icon={Download} label="Tải vé" onClick={handleDownload} />
           <ActionButton icon={Printer} label="In vé" onClick={() => window.print()} />
           <ActionButton icon={Share2} label="Chia sẻ" onClick={handleShare} />
         </div>
-        {feedback && <p className="px-4 pb-4 text-xs text-text-muted">{feedback}</p>}
       </div>
     </div>
   );
 }
 
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: typeof Download;
-  label: string;
-  onClick: () => void;
-}) {
+function ActionButton({ icon: Icon, label, onClick }: { icon: typeof Download; label: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-surface-elevated py-2 text-xs font-medium hover:bg-border"
-    >
+    <button type="button" onClick={onClick} className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-surface-elevated py-2 text-xs font-medium hover:bg-border">
       <Icon size={14} /> {label}
     </button>
   );
@@ -185,20 +118,9 @@ function ActionButton({
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="flex justify-between border-b border-border/60 pb-2">
-      <span className="text-text-muted">{label}</span>
-      <span className={strong ? 'font-bold text-primary' : ''}>{value}</span>
-    </div>
-  );
-}
-
-function QrPlaceholder() {
-  const cells = Array.from({ length: 49 }, (_, i) => (i * 7 + (i % 5)) % 3 === 0);
-  return (
-    <div className="grid h-32 w-32 grid-cols-7 gap-0.5 rounded bg-white p-2">
-      {cells.map((filled, i) => (
-        <span key={i} className={filled ? 'bg-bg' : 'bg-white'} />
-      ))}
+    <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+      <span className="shrink-0 text-text-muted">{label}</span>
+      <span className={`text-right ${strong ? 'font-bold text-primary' : ''}`}>{value}</span>
     </div>
   );
 }

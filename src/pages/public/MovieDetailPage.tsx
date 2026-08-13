@@ -37,12 +37,24 @@ export default function MovieDetailPage() {
 
   const allDates = useMemo(() => {
     const set = new Set<string>();
+    const upcomingDates = new Set<string>();
+    const now = Date.now();
     for (const system of systems ?? []) {
       for (const cluster of system.clusters) {
-        for (const st of cluster.showtimes) set.add(st.date);
+        for (const st of cluster.showtimes) {
+          set.add(st.date);
+          if (new Date(st.startsAt).getTime() >= now) upcomingDates.add(st.date);
+        }
       }
     }
-    return Array.from(set).sort();
+    return Array.from(upcomingDates.size > 0 ? upcomingDates : set).sort();
+  }, [systems]);
+
+  const demoPastShowtimes = useMemo(() => {
+    const entries = (systems ?? []).flatMap((system) =>
+      system.clusters.flatMap((cluster) => cluster.showtimes),
+    );
+    return entries.length > 0 && entries.every((showtime) => new Date(showtime.startsAt).getTime() < Date.now());
   }, [systems]);
 
   const activeDate = selectedDate ?? allDates[0] ?? null;
@@ -134,6 +146,12 @@ export default function MovieDetailPage() {
             </div>
 
             <LoginMarquee />
+
+            {demoPastShowtimes && (
+              <p className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+                Dữ liệu hiện chưa có suất chiếu tương lai. Các suất cũ chỉ được mở để trải nghiệm luồng đặt vé.
+              </p>
+            )}
 
             {showtimesLoading ? (
               <p className="text-text-muted">Đang tải lịch chiếu...</p>

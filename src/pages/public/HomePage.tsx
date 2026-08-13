@@ -11,6 +11,7 @@ import { MovieCardSkeleton } from '@/components/common/Skeleton';
 import EmptyState from '@/components/common/EmptyState';
 import AgeBadge from '@/components/movie/AgeBadge';
 import { formatRating } from '@/utils/format';
+import { normalizeSearchText } from '@/utils/search';
 
 type Tab = 'showing' | 'upcoming';
 
@@ -51,8 +52,8 @@ export default function HomePage() {
   const filtered = useMemo(() => {
     let list = (allMovies ?? []).filter((m) => (tab === 'showing' ? m.isShowing : m.isUpcoming));
     if (keyword) {
-      const kw = keyword.toLowerCase();
-      list = list.filter((m) => m.name.toLowerCase().includes(kw));
+      const kw = normalizeSearchText(keyword);
+      list = list.filter((m) => normalizeSearchText(m.name).includes(kw));
     }
     return list;
   }, [allMovies, tab, keyword]);

@@ -1,5 +1,6 @@
 import { cybersoftApi, CYBERSOFT_MA_NHOM, cybersoftErrorMessage } from '@/lib/cybersoftApi';
 import type { AgeRating, Movie } from '@/types';
+import { normalizeSearchText } from '@/utils/search';
 
 interface CyberSoftMovie {
   maPhim: number;
@@ -98,8 +99,8 @@ export async function fetchLiveMovies(filter: LiveMovieFilter = {}): Promise<Mov
   if (filter.status === 'showing') result = result.filter((m) => m.isShowing);
   if (filter.status === 'upcoming') result = result.filter((m) => m.isUpcoming);
   if (filter.keyword) {
-    const kw = filter.keyword.toLowerCase();
-    result = result.filter((m) => m.name.toLowerCase().includes(kw));
+    const kw = normalizeSearchText(filter.keyword);
+    result = result.filter((m) => normalizeSearchText(m.name).includes(kw));
   }
   return result;
 }

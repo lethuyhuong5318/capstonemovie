@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LogOut, Menu, MapPin, Ticket, User as UserIcon, X } from 'lucide-react';
+import { LogOut, Menu, Ticket, User as UserIcon, X } from 'lucide-react';
 import Logo from '@/components/common/Logo';
 import MovieSearchAutocomplete from '@/components/common/MovieSearchAutocomplete';
 import { useAuthStore } from '@/store/authStore';
-import { cities } from '@/mocks/cinemas';
 
 const navItems = [
   { to: '/', label: 'Phim' },
@@ -17,7 +16,6 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [city, setCity] = useState(cities[0]);
   const [keyword, setKeyword] = useState(searchParams.get('q') ?? '');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -81,25 +79,6 @@ export default function Header() {
           onChange={setKeyword}
           onSubmit={handleSearch}
         />
-
-        <div className="hidden items-center gap-1 text-sm text-text-muted hover:text-text sm:flex">
-          <MapPin size={16} aria-hidden="true" />
-          <label htmlFor="header-city" className="sr-only">
-            Khu vực
-          </label>
-          <select
-            id="header-city"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="cursor-pointer rounded bg-transparent text-sm outline-none"
-          >
-            {cities.map((c) => (
-              <option key={c} value={c} className="bg-surface text-text">
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
 
         {user ? (
           <div className="relative">
@@ -165,8 +144,8 @@ export default function Header() {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setDrawerOpen(false)} />
           <div
-            className="absolute right-0 top-0 flex h-full w-72 flex-col gap-1 bg-surface p-5"
-            style={{ animation: 'cw-slide-in-right 0.2s ease' }}
+            className="absolute left-0 top-0 flex h-full w-72 flex-col gap-1 bg-surface p-5"
+            style={{ animation: 'cw-slide-in-left 0.2s ease' }}
           >
             <div className="mb-4 flex items-center justify-between">
               <Logo />

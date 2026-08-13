@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Clock, MapPin, Ticket } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { fetchMyTickets } from '@/services/ticketApiService';
@@ -77,6 +78,9 @@ export default function ProfilePage() {
                   <span className="text-text-muted">Ghế:</span>
                   <span className="font-medium">{t.seatCodes.join(', ')}</span>
                 </p>
+                <Link to={`/tickets/${t.id}`} className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+                  Xem vé điện tử
+                </Link>
               </div>
             </div>
           ))}

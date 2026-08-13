@@ -133,11 +133,11 @@ export async function fetchAdminBookings(): Promise<AdminBookingRecord[]> {
         }
       });
     }
-    const merged = [...accounts.flatMap(mapAccountBookings), ...stored];
-    const unique = new Map(merged.map((booking) => [booking.id, booking]));
+    const merged = [...stored, ...accounts.flatMap(mapAccountBookings)];
+    const unique = new Map(merged.map((booking) => [booking.transactionCode, booking]));
     return Array.from(unique.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   } catch {
-    return stored;
+    throw new Error('Không thể tải dữ liệu đặt vé từ máy chủ.');
   }
 }
 

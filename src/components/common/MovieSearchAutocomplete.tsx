@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
+import { normalizeSearchText } from '@/utils/search';
 import { useNavigate } from 'react-router-dom';
 import { fetchLiveMovies } from '@/services/movieApiService';
 import PosterPlaceholder from '@/components/common/PosterPlaceholder';
@@ -13,10 +14,6 @@ interface Props {
   mobile?: boolean;
 }
 
-function normalizeSearch(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase('vi').trim();
-}
-
 export default function MovieSearchAutocomplete({ value, onChange, onSubmit, onSelect, mobile = false }: Props) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -26,12 +23,12 @@ export default function MovieSearchAutocomplete({ value, onChange, onSubmit, onS
     queryFn: () => fetchLiveMovies(),
     staleTime: 5 * 60 * 1000,
   });
-  const normalizedQuery = normalizeSearch(value);
+  const normalizedQuery = normalizeSearchText(value);
   const suggestions = useMemo(() => {
     if (normalizedQuery.length < 2) return [];
     return movies
-      .filter((movie) => normalizeSearch(movie.name).includes(normalizedQuery))
-      .sort((a, b) => Number(!normalizeSearch(a.name).startsWith(normalizedQuery)) - Number(!normalizeSearch(b.name).startsWith(normalizedQuery)) || a.name.localeCompare(b.name, 'vi'))
+      .filter((movie) => normalizeSearchText(movie.name).includes(normalizedQuery))
+      .sort((a, b) => Number(!normalizeSearchText(a.name).startsWith(normalizedQuery)) - Number(!normalizeSearchText(b.name).startsWith(normalizedQuery)) || a.name.localeCompare(b.name, 'vi'))
       .slice(0, 6);
   }, [movies, normalizedQuery]);
   const showPanel = open && normalizedQuery.length >= 2;

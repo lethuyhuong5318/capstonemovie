@@ -11,7 +11,7 @@ export default function DashboardPage() {
     queryKey: ['admin-movies'],
     queryFn: () => fetchLiveMovies({ status: 'all' }),
   });
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [], isError: bookingsError } = useQuery({
     queryKey: ['admin-bookings'],
     queryFn: fetchAdminBookings,
     staleTime: 0,
@@ -56,6 +56,16 @@ export default function DashboardPage() {
   return (
     <div>
       <h1 className="mb-6 text-xl font-semibold">Dashboard</h1>
+
+      {bookingsError ? (
+        <p className="mb-4 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+          Không thể tải số vé và doanh thu từ máy chủ. Hai chỉ số này tạm hiển thị 0 để tránh báo cáo sai.
+        </p>
+      ) : (
+        <p className="mb-4 text-xs text-text-muted">
+          Số vé và doanh thu được tổng hợp từ lịch sử đặt vé trên API CyberSoft.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
