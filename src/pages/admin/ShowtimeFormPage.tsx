@@ -57,6 +57,7 @@ export default function ShowtimeFormPage() {
       return createShowtime({
         movieId,
         roomId,
+        cinemaClusterCode: clusterCode,
         date,
         time,
         price,

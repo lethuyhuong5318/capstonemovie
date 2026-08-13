@@ -6,30 +6,22 @@ import {
   fetchTicketRoom,
   bookTickets,
   SeatConflictError,
+  fetchMyTickets,
   type TicketSeat,
 } from '@/services/ticketApiService';
-import { processPayment, paymentMethodLabel } from '@/services/paymentService';
+import { paymentMethodLabel } from '@/services/paymentService';
 import { saveAdminBooking } from '@/services/adminBookingService';
 import { useAuthStore } from '@/store/authStore';
 import SeatMap from '@/components/booking/SeatMap';
 import ProgressSteps from '@/components/booking/ProgressSteps';
 import PaymentMethodSelector from '@/components/booking/PaymentMethodSelector';
-import PaymentGateway from '@/components/booking/PaymentGateway';
 import { useCountdown } from '@/hooks/useCountdown';
 import { formatCurrency } from '@/utils/format';
 import type { PaymentMethod } from '@/types';
 
 const HOLD_SECONDS = 5 * 60;
 
-type Step = 'seats' | 'payment' | 'gateway' | 'success';
-
-class PaymentFailedError extends Error {
-  transactionCode: string;
-  constructor(transactionCode: string) {
-    super('Payment failed');
-    this.transactionCode = transactionCode;
-  }
-}
+type Step = 'seats' | 'payment' | 'success';
 
 export default function BookingPage() {
   const { showtimeId } = useParams();
@@ -66,16 +58,16 @@ export default function BookingPage() {
   const paymentMutation = useMutation({
     mutationFn: async () => {
       if (!room) throw new Error('Thông tin suất chiếu chưa sẵn sàng. Vui lòng thử lại.');
-      const result = await processPayment(method);
-      if (result.status === 'FAILED') throw new PaymentFailedError(result.transactionCode);
-
       await bookTickets({
         showtimeId: id,
         seats: selected.map((s) => ({ id: s.id, price: s.price })),
       });
+      const tickets = await fetchMyTickets();
+      const latestTicket = [...tickets].sort((a, b) => b.bookedAt.localeCompare(a.bookedAt))[0];
+      const transactionCode = latestTicket ? String(latestTicket.id) : `BOOKING-${id}-${Date.now()}`;
       saveAdminBooking({
-        id: `${id}-${result.transactionCode}`,
-        transactionCode: result.transactionCode,
+        id: latestTicket ? `api-${latestTicket.id}` : `${id}-${transactionCode}`,
+        transactionCode,
         customerUsername: user?.username ?? 'guest',
         customerName: user?.fullName ?? 'Khách hàng',
         movieName: room.movieName,
@@ -90,7 +82,7 @@ export default function BookingPage() {
         status: 'PAID',
         createdAt: new Date().toISOString(),
       });
-      return result.transactionCode;
+      return transactionCode;
     },
     onSuccess: (code) => {
       setTransactionCode(code);
@@ -172,9 +164,7 @@ export default function BookingPage() {
   }
 
   const errorMessage = paymentMutation.isError
-    ? paymentMutation.error instanceof PaymentFailedError
-      ? `Thanh toán thất bại (mã GD ${paymentMutation.error.transactionCode}). Vui lòng thử lại.`
-      : paymentMutation.error instanceof Error
+    ? paymentMutation.error instanceof Error
         ? paymentMutation.error.message
         : 'Đã có lỗi xảy ra. Vui lòng thử lại.'
     : null;
@@ -219,28 +209,6 @@ export default function BookingPage() {
     </div>
   );
 
-  if (step === 'gateway') {
-    return (
-      <div className="container-app max-w-3xl py-6">
-        <div className="mb-6">
-          <ProgressSteps current={3} />
-        </div>
-        <h1 className="mb-6 text-2xl font-semibold">Thanh toán</h1>
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
-          <PaymentGateway
-            method={method}
-            amount={grandTotal}
-            orderCode={`ORD${id}`}
-            pending={paymentMutation.isPending}
-            onCancel={() => setStep('payment')}
-            onConfirm={() => paymentMutation.mutate()}
-          />
-          <div>{summary}</div>
-        </div>
-      </div>
-    );
-  }
-
   if (step === 'payment') {
     return (
       <div className="container-app max-w-3xl py-6">
@@ -261,7 +229,7 @@ export default function BookingPage() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
           <div>
             <p className="mb-3 text-sm font-medium text-text-muted">Chọn phương thức thanh toán</p>
-            <PaymentMethodSelector value={method} onChange={setMethod} />
+            <PaymentMethodSelector value={method} onChange={setMethod} disabled={paymentMutation.isPending} />
 
             {errorMessage && (
               <div className="mt-4 flex items-center gap-2 rounded-md border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
@@ -275,10 +243,11 @@ export default function BookingPage() {
             {summary}
             <button
               type="button"
-              onClick={() => setStep('gateway')}
-              className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold hover:bg-primary-hover"
+              onClick={() => paymentMutation.mutate()}
+              disabled={paymentMutation.isPending}
+              className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold hover:bg-primary-hover disabled:opacity-40"
             >
-              {errorMessage ? 'Thử lại' : `Thanh toán ${formatCurrency(grandTotal)}`}
+              {paymentMutation.isPending ? 'Đang xử lý thanh toán...' : errorMessage ? 'Thử lại' : `Thanh toán ${formatCurrency(grandTotal)}`}
             </button>
           </div>
         </div>

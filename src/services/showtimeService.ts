@@ -133,6 +133,7 @@ export async function fetchSeatsByShowtime(showtimeId: number): Promise<Seat[]> 
 export interface ShowtimeFormValues {
   movieId: number;
   roomId: string;
+  cinemaClusterCode: string;
   date: string;
   time: string;
   price: number;
@@ -144,7 +145,7 @@ export async function createShowtime(values: ShowtimeFormValues) {
     const response = await cybersoftApi.post('QuanLyDatVe/TaoLichChieu', {
       maPhim: Number(values.movieId),
       ngayChieuGioChieu: `${day}/${month}/${year} ${values.time}:00`,
-      maRap: Number(values.roomId),
+      maRap: values.cinemaClusterCode,
       giaVe: Number(values.price),
     });
     return response.data.content;
